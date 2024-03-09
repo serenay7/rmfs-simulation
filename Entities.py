@@ -22,13 +22,15 @@ class Robot():
         self.network = network
         self.robotID = robotID
         self.pod = pod
-        self.currentNode = currentNode
+        self.currentNode = currentNode # (0,0)
         self.targetNode = targetNode
         self.currentTask = currentTask
         self.taskList = taskList
         self.loadedSpeed = loadedSpeed
         self.emptySpeed = emptySpeed
 
+    def completeTask(self):
+        pass
 
     def createPath(self, targetNode):
         self.targetNode = targetNode
@@ -41,32 +43,11 @@ class Robot():
             print(f"{self.robotID} is moving from {self.currentNode} to {next_position}")
             self.currentNode = next_position
 
-
-#
-# class Robot():
-#     def __init__(self, env, robotID, pod, currentLocation, targetLocation, currentTask, taskList, loadedSpeed=1, emptySpeed=2):
-#         self.env = env
-#         self.robotID = robotID
-#         self.pod = pod
-#         self.currentLocation = currentLocation
-#         self.targetLocation = targetLocation
-#         self.currentTask = currentTask
-#         self.taskList = taskList
-#         self.loadedSpeed = loadedSpeed
-#         self.emptySpeed = emptySpeed
-#
-#     def moveDestination(self, distance):
-#         if self.pod is None:
-#             move_event = self.env.timeout(distance/self.emptySpeed)
-#         else:
-#             move_event = self.env.timeout(distance/self.loadedSpeed)
-#
-#         def move_completed_callback(_):
-#             print(f"Robot {self.robotID} has completed moving to destination: {self.env.now}")
-#
-#         move_event.callbacks.append(move_completed_callback)
-#         yield move_event
-
+    def DoExtractTask(self,extractTask):
+        self.createPath(extractTask.outputstation.location)
+        yield self.env.process(self.move())
+        extractTask.outputstation.currentPod = self.pod
+        extractTask.outputstation.PickItems()
 
 
 
@@ -110,11 +91,11 @@ class ExtractTask():
         self.outputstation = outputstation
         self.pod = pod
 
-    def DoExtractTask(self):
-        self.robot.createPath(self.outputstation.location)
-        self.robot.move()
-        self.outputstation.currentPod = self.pod
-        self.outputstation.PickItems()
+    # def DoExtractTask(self):
+    #     self.robot.createPath(self.outputstation.location)
+    #     self.robot.move()
+    #     self.outputstation.currentPod = self.pod
+    #     self.outputstation.PickItems()
 
 
 

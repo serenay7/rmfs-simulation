@@ -35,7 +35,8 @@ if __name__ == "__main__":
                            [2,50]))
     samplePod = Pod(env,podSKUList, None, robot1)
     OStation1 = OutputStation(env,(0,3),itemlist)
+    robot1.pod = samplePod
     sampleExtractTask = ExtractTask(env, robot1, OStation1, samplePod)
 
-    env.process(sampleExtractTask.DoExtractTask())
+    env.process(robot1.DoExtractTask(sampleExtractTask))
     env.run(until=10)
