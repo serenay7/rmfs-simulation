@@ -49,3 +49,8 @@ if __name__ == "__main__":
     """
     #env.process(robot1.DoExtractTask(sampleExtractTask))
 
+
+### UPH İÇİN
+# output_station = OutputStation(env, location, pickItemList)
+# After some simulation steps where PickItems might be called
+# print(f"PickItems was called {output_station.getPickItemsCount()} times.")

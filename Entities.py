@@ -30,6 +30,8 @@ class Robot():
         self.loadedSpeed = loadedSpeed
         self.emptySpeed = emptySpeed
         self.takeTime = takeTime
+       # self.stepsTaken = 0  # Initialize the steps counter, for total distance calculation
+       # self.podsCarriedCount = 0 # Counts how many pods a robot carry.
 
     def completeTask(self):
         pass
@@ -45,7 +47,8 @@ class Robot():
     def move(self):
         #loaded olduğu zaman pod olmayan yerlerden gidecek
         for next_position in self.path[1:]:
-            print(f"{self.robotID} is moving from {self.currentNode} to {next_position}")
+            # self.stepsTaken += 1  # Increment the steps counter each time the robot moves
+
             if self.pod != None:
                 event = self.env.timeout(self.loadedSpeed)
                 event.callbacks.append(self.changeCurrentNode(next_position))
@@ -62,11 +65,23 @@ class Robot():
         pod.robot = self.robotID
         yield self.env.timeout(self.takeTime)
 
+
     def DoExtractTask(self,extractTask):
         self.createPath(extractTask.outputstation.location)
         yield self.env.process(self.move())
         extractTask.outputstation.currentPod = self.pod
         extractTask.outputstation.PickItems()
+
+    # def assignPod(self, pod):
+    #    if self.pod != pod:  # Check if a new pod is being assigned
+    #        self.pod = pod
+    #        self.podsCarriedCount += 1  # Increment the pods carried counter
+
+    # def getStepsTaken(self): # FOR TOTAL DISTANCE CALCULATION
+    #    return self.stepsTaken
+
+    # def getPodsCarriedCount(self): # TO COUNT HOW MANY PODS A ROBOT CARRY
+    #    return self.podsCarriedCount
 
 
 
@@ -93,10 +108,14 @@ class OutputStation(simpy.Resource):
         self.podQueue = podQueue
         self.timeToPick = timeToPick
 
-    def PickItems(self):
+    def PickedItems(self):
+        # self.pickItemsCount += 1 # UPH için istatistik tutucu
         for row in self.pickItemList:
             pickedAmount = self.currentPod.changeSKUAmount(row[0],-row[1])
             row[1] -= pickedAmount
+
+    # def getPickItemsCount(self): # UPH counter
+    #    return self.pickItemsCount
 
 
 class Task():
