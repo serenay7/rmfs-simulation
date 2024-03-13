@@ -36,18 +36,19 @@ if __name__ == "__main__":
     samplePod = Pod(env, podSKUList, target_node, None, "idle")
 
     robot1 = Robot(env, rectangular_network, 1, None, start_node)
-    robot1.createPath(target_node)
-    env.process(robot1.move())
-    env.process(robot1.takePod(samplePod))
-    env.run(until=20)
+    #robot1.createPath(target_node)
+    #env.process(robot1.move())
+    #env.process(robot1.takePod(samplePod))
+    #env.run(until=20)
 
 
     OStation1 = OutputStation(env,(0,3),itemlist)
-    """
-    robot1.pod = samplePod
+
+    #robot1.pod = samplePod
     sampleExtractTask = ExtractTask(env, robot1, OStation1, samplePod)
-    """
-    #env.process(robot1.DoExtractTask(sampleExtractTask))
+
+    env.process(robot1.DoExtractTask(sampleExtractTask))
+    env.run(until=20)
 
 
 ### UPH İÇİN
