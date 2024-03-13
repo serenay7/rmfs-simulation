@@ -45,12 +45,12 @@ def create_rectangular_network_with_attributes(rows, columns):
     pos = dict((node, node) for node in G.nodes())
     return G, pos
 
-
-# Yeni depo ağı oluşturma ve raf yerleştirme
-rows = 11
-columns = 19
-rectangular_network, pos = create_rectangular_network_with_attributes(rows, columns)
-place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-
-# Güncellenmiş ağı görselleştirme
-draw_network_with_shelves(rectangular_network, pos)
+if __name__ == "__main__":
+    # Yeni depo ağı oluşturma ve raf yerleştirme
+    rows = 5
+    columns = 5
+    rectangular_network, pos = create_rectangular_network_with_attributes(rows, columns)
+    place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+    print(rectangular_network.nodes())
+    # Güncellenmiş ağı görselleştirme
+    draw_network_with_shelves(rectangular_network, pos)

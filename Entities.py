@@ -2,11 +2,12 @@ import simpy
 import networkx as nx
 
 class Pod(simpy.Resource):
-    def __init__(self, env, skuList, location, robot):
+    def __init__(self, env, skuList, location, robot, status):
         self.env = env
         self.skuList = skuList
         self.location = location #(0,0), (5,5)
         self.robot = robot
+        self.status = status
 
     def changeSKUAmount(self, sku, amount):
         for row in self.skuList:
@@ -17,7 +18,7 @@ class Pod(simpy.Resource):
 
 
 class Robot():
-    def __init__(self, env, network, robotID, pod, currentNode, targetNode=None, currentTask=None, taskList=None, loadedSpeed=1, emptySpeed=2):
+    def __init__(self, env, network, robotID, pod, currentNode, targetNode=None, currentTask=None, taskList=None, loadedSpeed=1, emptySpeed=2, takeTime=3):
         self.env = env
         self.network = network
         self.robotID = robotID
@@ -28,6 +29,7 @@ class Robot():
         self.taskList = taskList
         self.loadedSpeed = loadedSpeed
         self.emptySpeed = emptySpeed
+        self.takeTime = takeTime
 
     def completeTask(self):
         pass
@@ -36,12 +38,29 @@ class Robot():
         self.targetNode = targetNode
         self.path = nx.shortest_path(self.network, source=self.currentNode, target=self.targetNode)
 
+    def changeCurrentNode(self, node):
+        self.currentNode = node
+        if self.pod != None: self.pod.location = node
+
     def move(self):
-        #burayı değiştir self.currentNode = next_position callback olarak evente ekle
+        #loaded olduğu zaman pod olmayan yerlerden gidecek
         for next_position in self.path[1:]:
-            yield self.env.timeout(2)  # Time taken to move from one node to another
             print(f"{self.robotID} is moving from {self.currentNode} to {next_position}")
-            self.currentNode = next_position
+            if self.pod != None:
+                event = self.env.timeout(self.loadedSpeed)
+                event.callbacks.append(self.changeCurrentNode(next_position))
+                yield event
+            else:
+                event = self.env.timeout(self.emptySpeed)
+                #event.callbacks.append(self.changeCurrentNode(next_position))
+                event.callbacks.append(lambda event, pos=next_position: self.changeCurrentNode(pos))
+                yield event
+
+
+    def takePod(self, pod):
+        pod.status = "taken"
+        pod.robot = self.robotID
+        yield self.env.timeout(self.takeTime)
 
     def DoExtractTask(self,extractTask):
         self.createPath(extractTask.outputstation.location)
