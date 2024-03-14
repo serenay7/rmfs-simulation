@@ -61,10 +61,13 @@ class Robot():
 
 
     def takePod(self, pod):
-        pod.status = "taken"
-        pod.robot = self.robotID
-        self.pod = pod
-        yield self.env.timeout(self.takeTime)
+        if pod.status == "taken":
+            raise Exception("Pod is already taken")
+        else:
+            pod.status = "taken"
+            pod.robot = self.robotID #burası direkt pod.robot = self olabilir
+            self.pod = pod
+            yield self.env.timeout(self.takeTime)
 
 
     def DoExtractTask(self,extractTask):
