@@ -18,9 +18,10 @@ class Pod(simpy.Resource):
 
 
 class Robot():
-    def __init__(self, env, network, robotID, pod, currentNode, targetNode=None, currentTask=None, taskList=None, loadedSpeed=1, emptySpeed=2, takeTime=3):
+    def __init__(self, env, network_corridors, network, robotID, pod, currentNode, targetNode=None, currentTask=None, taskList=None, loadedSpeed=1, emptySpeed=2, takeTime=3):
         self.env = env
         self.network = network
+        self.network_corridors = network_corridors
         self.robotID = robotID
         self.pod = pod
         self.currentNode = currentNode # (0,0)
@@ -38,7 +39,11 @@ class Robot():
 
     def createPath(self, targetNode):
         self.targetNode = targetNode
-        self.path = nx.shortest_path(self.network, source=self.currentNode, target=self.targetNode)
+
+        if self.pod != None:
+            self.path = nx.shortest_path(self.network, source=self.currentNode, target=self.targetNode)
+        else:
+            self.path = nx.shortest_path(self.network_corridors, source=self.currentNode, target=self.targetNode)
 
     def changeCurrentNode(self, node):
         self.currentNode = node

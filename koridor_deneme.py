@@ -45,12 +45,24 @@ def create_rectangular_network_with_attributes(rows, columns):
     pos = dict((node, node) for node in G.nodes())
     return G, pos
 
+def create_corridor_subgraph(G):
+    """
+    Creates a subgraph containing only the corridor nodes (i.e., nodes not part of shelves).
+    """
+    # Extract nodes that are not part of a shelf
+    corridor_nodes = [node for node, data in G.nodes(data=True) if not data.get('shelf', False)]
+    return G.subgraph(corridor_nodes).copy()
+
 if __name__ == "__main__":
     # Yeni depo ağı oluşturma ve raf yerleştirme
     rows = 5
     columns = 5
     rectangular_network, pos = create_rectangular_network_with_attributes(rows, columns)
     place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-    print(rectangular_network.nodes())
+    #print(rectangular_network._node)
+    #create_subgraph(rectangular_network)
+    #rectangular_network[1][1]["shelf"] = True
+    #print(rectangular_network[1][1]["shelf"])
+    test = create_corridor_subgraph(rectangular_network)
     # Güncellenmiş ağı görselleştirme
     draw_network_with_shelves(rectangular_network, pos)

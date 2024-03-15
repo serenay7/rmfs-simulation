@@ -24,10 +24,12 @@ if __name__ == "__main__":
     koridor_deneme.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
     koridor_deneme.draw_network_with_shelves(rectangular_network, pos)
 
+    network_corridors = koridor_deneme.create_corridor_subgraph(rectangular_network)
+
     node = list(rectangular_network.nodes)
-    start_node1 = node[0]
+    start_node1 = node[12]
     start_node2 = node[1]
-    target_node1 = node[5]
+    target_node1 = node[15]
     target_node2 = node[10]
 
     itemlist = np.array(([1, 10],
@@ -38,24 +40,24 @@ if __name__ == "__main__":
     samplePod1 = Pod(env, podSKUList, target_node1, None, "idle")
     samplePod2 = Pod(env, podSKUList, target_node2, None, "idle")
 
-    robot1 = Robot(env, rectangular_network, 1, None, start_node1)
-    robot2 = Robot(env, rectangular_network, 2, None, start_node2)
-    #robot1.createPath(target_node)
-    #env.process(robot1.move())
+    robot1 = Robot(env, rectangular_network, network_corridors,1, samplePod1, start_node1)
+    #robot2 = Robot(env, rectangular_network, network_corridors,2, None, start_node2)
+    robot1.createPath(target_node1)
+    env.process(robot1.move())
     #env.process(robot1.takePod(samplePod))
-    #env.run(until=20)
+    env.run(until=20)
 
 
     OStation1 = OutputStation(env,(0,3),itemlist)
 
-    #robot1.pod = samplePod
-    sampleExtractTask1 = ExtractTask(env, robot1, OStation1, samplePod1)
-    sampleExtractTask2 = ExtractTask(env, robot2, OStation1, samplePod2)
+    robot1.pod = samplePod1
+    #sampleExtractTask1 = ExtractTask(env, robot1, OStation1, samplePod1)
+    #sampleExtractTask2 = ExtractTask(env, robot2, OStation1, samplePod2)
 
-    env.process(robot1.DoExtractTask(sampleExtractTask1))
-    env.process(robot2.DoExtractTask(sampleExtractTask2))
+    #env.process(robot1.DoExtractTask(sampleExtractTask1))
+    #env.process(robot2.DoExtractTask(sampleExtractTask2))
 
-    env.run(until=20)
+    #env.run(until=20)
 
 
 ### UPH İÇİN
