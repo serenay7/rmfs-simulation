@@ -1,5 +1,6 @@
 import simpy
 import networkx as nx
+import koridor_deneme as layout
 
 class Pod(simpy.Resource):
     def __init__(self, env, skuList, location, robot, status):
@@ -18,7 +19,8 @@ class Pod(simpy.Resource):
 
 
 class Robot():
-    def __init__(self, env, network_corridors, network, robotID, pod, currentNode, targetNode=None, currentTask=None, taskList=None, loadedSpeed=1, emptySpeed=2, takeTime=3):
+    def __init__(self, env, network_corridors, network, robotID, pod, currentNode,
+                 targetNode=None, currentTask=None, taskList=None, loadedSpeed=1, emptySpeed=2, takeTime=3, dropTime=3):
         self.env = env
         self.network = network
         self.network_corridors = network_corridors
@@ -31,16 +33,19 @@ class Robot():
         self.loadedSpeed = loadedSpeed
         self.emptySpeed = emptySpeed
         self.takeTime = takeTime
+        self.dropTime = dropTime
        # self.stepsTaken = 0  # Initialize the steps counter, for total distance calculation
        # self.podsCarriedCount = 0 # Counts how many pods a robot carry.
 
     def completeTask(self):
         pass
 
-    def createPath(self, targetNode):
+    def createPath(self, targetNode, tempGraph = None):
         self.targetNode = targetNode
 
-        if self.pod != None:
+        if tempGraph != None:
+            self.path = nx.shortest_path(tempGraph, source=self.currentNode, target=self.targetNode)
+        elif self.pod != None:
             self.path = nx.shortest_path(self.network, source=self.currentNode, target=self.targetNode)
         else:
             self.path = nx.shortest_path(self.network_corridors, source=self.currentNode, target=self.targetNode)
@@ -74,8 +79,13 @@ class Robot():
             self.pod = pod
             yield self.env.timeout(self.takeTime)
 
+    def dropPod(self, pod):
+        pod.status = "idle"
+        pod.robot = None
+        self.pod = None
+        yield self.env.timeout(self.dropTime)
 
-    def DoExtractTask(self,extractTask):
+    def DoExtractTask(self, extractTask):
         self.createPath(extractTask.pod.location)
         yield self.env.process(self.move())
         yield self.env.process(self.takePod(extractTask.pod))
@@ -83,6 +93,14 @@ class Robot():
         yield self.env.process(self.move())
         extractTask.outputstation.currentPod = self.pod
         extractTask.outputstation.PickedItems()
+
+    def DoStorageTask(self, storageTask):
+        tempGraph = layout.create_node_added_subgraph(storageTask.storageLocation, self.network_corridors, self.network)
+        self.createPath(storageTask.storageLocation, tempGraph=tempGraph)
+        del tempGraph
+        yield self.env.process(self.move())
+        yield self.env.process(self.dropPod(self.pod))
+
 
     # def assignPod(self, pod):
     #    if self.pod != pod:  # Check if a new pod is being assigned
@@ -151,7 +169,8 @@ class ExtractTask():
 
 
 class StorageTask(Task):
-    def __init__(self, robot, pod, storageLocation):
+    def __init__(self, env, robot, pod, storageLocation):
+        self.env = env
         self.robot = robot
         self.pod = pod
         self.storageLocation = storageLocation

@@ -53,10 +53,24 @@ def create_corridor_subgraph(G):
     corridor_nodes = [node for node, data in G.nodes(data=True) if not data.get('shelf', False)]
     return G.subgraph(corridor_nodes).copy()
 
+def create_node_added_subgraph(specific_node, subgraph, graph):
+    # Create a shallow copy of the existing subgraph
+    node_added_subgraph = subgraph.copy()
+
+    # Add the specific node to the copy of the subgraph
+    node_added_subgraph.add_node(specific_node, **graph.nodes[specific_node])
+
+    # Add edges of the specific node to the copy of the subgraph
+    for neighbor in graph.neighbors(specific_node):
+        if neighbor in node_added_subgraph.nodes:
+            node_added_subgraph.add_edge(specific_node, neighbor)
+
+    return  node_added_subgraph
+
 if __name__ == "__main__":
     # Yeni depo ağı oluşturma ve raf yerleştirme
-    rows = 5
-    columns = 5
+    rows = 4
+    columns = 4
     rectangular_network, pos = create_rectangular_network_with_attributes(rows, columns)
     place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
     #print(rectangular_network._node)
@@ -64,5 +78,10 @@ if __name__ == "__main__":
     #rectangular_network[1][1]["shelf"] = True
     #print(rectangular_network[1][1]["shelf"])
     test = create_corridor_subgraph(rectangular_network)
+    node_added_subgraph = create_node_added_subgraph((3,1), test, rectangular_network)
+    nx.draw(node_added_subgraph, with_labels=True, node_color='skyblue', node_size=500, edge_color='gray')
+
+    # Display the graph
+    plt.show()
     # Güncellenmiş ağı görselleştirme
     draw_network_with_shelves(rectangular_network, pos)

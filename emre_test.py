@@ -1,6 +1,6 @@
 import numpy as np
 import simpy
-from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask
+from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, StorageTask
 import koridor_deneme
 
 
@@ -27,9 +27,11 @@ if __name__ == "__main__":
     network_corridors = koridor_deneme.create_corridor_subgraph(rectangular_network)
 
     node = list(rectangular_network.nodes)
-    start_node1 = node[12]
+    #start_node1 = node[12]
+    start_node1 = (3,3)
     start_node2 = node[1]
-    target_node1 = node[15]
+    #target_node1 = node[15]
+    target_node1 = (3,1)
     target_node2 = node[10]
 
     itemlist = np.array(([1, 10],
@@ -40,11 +42,15 @@ if __name__ == "__main__":
     samplePod1 = Pod(env, podSKUList, target_node1, None, "idle")
     samplePod2 = Pod(env, podSKUList, target_node2, None, "idle")
 
-    robot1 = Robot(env, rectangular_network, network_corridors,1, samplePod1, start_node1)
+    robot1 = Robot(env, network_corridors, rectangular_network,1, samplePod1, start_node1)
     #robot2 = Robot(env, rectangular_network, network_corridors,2, None, start_node2)
-    robot1.createPath(target_node1)
-    env.process(robot1.move())
+    #robot1.createPath(target_node1)
+    #env.process(robot1.move())
     #env.process(robot1.takePod(samplePod))
+
+    sampleStorageTask1 = StorageTask(env, robot1, samplePod1, (3,1))
+    env.process(robot1.DoStorageTask(sampleStorageTask1))
+
     env.run(until=20)
 
 
