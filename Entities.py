@@ -34,7 +34,7 @@ class Robot():
         self.emptySpeed = emptySpeed
         self.takeTime = takeTime
         self.dropTime = dropTime
-       # self.stepsTaken = 0  # Initialize the steps counter, for total distance calculation
+        self.stepsTaken = 0  # Initialize the steps counter, for total distance calculation
        # self.podsCarriedCount = 0 # Counts how many pods a robot carry.
 
     def completeTask(self):
@@ -45,7 +45,7 @@ class Robot():
 
         if tempGraph != None:
             self.path = nx.shortest_path(tempGraph, source=self.currentNode, target=self.targetNode)
-        elif self.pod != None:
+        elif self.pod == None:
             self.path = nx.shortest_path(self.network, source=self.currentNode, target=self.targetNode)
         else:
             self.path = nx.shortest_path(self.network_corridors, source=self.currentNode, target=self.targetNode)
@@ -57,7 +57,7 @@ class Robot():
     def move(self):
         #loaded olduğu zaman pod olmayan yerlerden gidecek
         for next_position in self.path[1:]:
-            # self.stepsTaken += 1  # Increment the steps counter each time the robot moves
+            self.stepsTaken += 1  # Increment the steps counter each time the robot moves
 
             if self.pod != None:
                 event = self.env.timeout(self.loadedSpeed)
@@ -91,8 +91,8 @@ class Robot():
         yield self.env.process(self.takePod(extractTask.pod))
         self.createPath(extractTask.outputstation.location)
         yield self.env.process(self.move())
-        extractTask.outputstation.currentPod = self.pod
-        extractTask.outputstation.PickedItems()
+        #extractTask.outputstation.currentPod = self.pod
+        #extractTask.outputstation.PickedItems()
 
     def DoStorageTask(self, storageTask):
         tempGraph = layout.create_node_added_subgraph(storageTask.storageLocation, self.network_corridors, self.network)
@@ -107,8 +107,8 @@ class Robot():
     #        self.pod = pod
     #        self.podsCarriedCount += 1  # Increment the pods carried counter
 
-    # def getStepsTaken(self): # FOR TOTAL DISTANCE CALCULATION
-    #    return self.stepsTaken
+    def getStepsTaken(self): # FOR TOTAL DISTANCE CALCULATION
+       return self.stepsTaken
 
     # def getPodsCarriedCount(self): # TO COUNT HOW MANY PODS A ROBOT CARRY
     #    return self.podsCarriedCount
@@ -143,7 +143,7 @@ class OutputStation(simpy.Resource):
         # +,- değiştir
         for row in self.pickItemList:
             pickedAmount = self.currentPod.changeSKUAmount(row[0],-row[1])
-            row[1] -= pickedAmount
+            row[1] -= 0 #pickedAmount
 
     # def getPickItemsCount(self): # UPH counter
     #    return self.pickItemsCount

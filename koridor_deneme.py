@@ -69,8 +69,8 @@ def create_node_added_subgraph(specific_node, subgraph, graph):
 
 if __name__ == "__main__":
     # Yeni depo ağı oluşturma ve raf yerleştirme
-    rows = 4
-    columns = 4
+    rows = 26
+    columns = 16
     rectangular_network, pos = create_rectangular_network_with_attributes(rows, columns)
     place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
     #print(rectangular_network._node)
