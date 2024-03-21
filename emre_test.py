@@ -23,14 +23,14 @@ if __name__ == "__main__":
     #rows = 13  4x8
     #columns = 41
 
-    rows = 16  #5x5
-    columns = 26
+    #rows = 16  #5x5
+    #columns = 26
 
     #rows = 10 3x6
     #columns = 31
 
-    #rows = 10 #3x3
-    #columns = 16
+    rows = 10 #3x3
+    columns = 16
 
     rectangular_network, pos = koridor_deneme.create_rectangular_network_with_attributes(columns, rows)
     koridor_deneme.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
