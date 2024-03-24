@@ -21,6 +21,19 @@ def rawsimoPodSelection(itemList, itemIndexDict, podMatrix):
     return max_hit_pod
 
 
+def rawsimoPodSelectionExperiment(itemList, podMatrix):
+    #bizim generate ettiğimiz samplelar için kullanılacak
+    max_hit = 0
+    max_hit_pod = None
+    for pod_idx, pod in enumerate(podMatrix):
+        hit = 0
+        for item in itemList:
+            if pod[item[0]] >= item[1]:
+                hit += item[1]
+        if hit > max_hit:
+            max_hit = hit
+            max_hit_pod = pod_idx
+    return max_hit_pod
 
 
 
@@ -56,8 +69,6 @@ if __name__ == "__main__":
             amount = int(element.split('(')[1][:-1])
             test = result[sku]
             a_rs[index, result[sku]] = amount
-        print(np.sum(a_rs))
 
     itemList = [[435,1],[841,1]]
     selected = rawsimoPodSelection(itemList, result, a_rs)
-    a = 10
