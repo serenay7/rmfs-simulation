@@ -1,6 +1,20 @@
 import numpy as np
 import pandas as pd
 
+
+def manhattan_distance_between_consecutive_rows(arr):
+    # Convert array of tuples to a NumPy array
+    arr = np.array(arr)
+
+    # Calculate Manhattan distances
+    x_diff = np.abs(arr[:-1, 0] - arr[1:, 0])
+    y_diff = np.abs(arr[:-1, 1] - arr[1:, 1])
+
+    # Sum of Manhattan distances
+    total_distance = np.sum(x_diff + y_diff)
+
+    return total_distance
+
 def rawsimoPodSelection(itemList, itemIndexDict, podMatrix):
     #bütün skular yeniden indexleniyor
     newItemList = []
@@ -39,6 +53,15 @@ def rawsimoPodSelectionExperiment(itemList, podMatrix):
             satisfiedSKU = satisfiedSKU_temp.copy()
     return max_hit_pod, satisfiedSKU
 
+def rawsimoTaskAssignment(taskList, numRobots):
+    #buradaki taskList vrp'ye verilenden farklı olabilir istasyon bilgisi de lazım
+    totalDistance = 0
+    for robot_idx in range(numRobots):
+        filtered_arr = taskList[taskList[:, 1] == robot_idx]
+        # Drop the second column
+        filtered_arr = np.delete(filtered_arr, 1, axis=1)
+        totalDistance += manhattan_distance_between_consecutive_rows(filtered_arr)
+    return totalDistance
 
 def podSelectionLP(itemList, podDict, podMatrix):
 
