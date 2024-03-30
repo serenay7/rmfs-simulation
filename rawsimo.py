@@ -25,20 +25,33 @@ def rawsimoPodSelectionExperiment(itemList, podMatrix):
     #bizim generate ettiğimiz samplelar için kullanılacak
     max_hit = 0
     max_hit_pod = None
+    satisfiedSKU = []
     for pod_idx, pod in enumerate(podMatrix):
         hit = 0
+        satisfiedSKU_temp = []
         for item in itemList:
             if pod[item[0]] >= item[1]:
                 hit += item[1]
+                satisfiedSKU_temp.append(item[0])
         if hit > max_hit:
             max_hit = hit
             max_hit_pod = pod_idx
-    return max_hit_pod
+            satisfiedSKU = satisfiedSKU_temp.copy()
+    return max_hit_pod, satisfiedSKU
 
 
+def podSelectionLP(itemList, podDict, podMatrix):
+
+    selectedPods = []
+    while len(itemList) > 0:
+        selected, satisfiedSKU = rawsimoPodSelectionExperiment(itemList=itemList, podMatrix=podMatrix)
+        itemList = [sublist for sublist in itemList if sublist[0] not in satisfiedSKU]
+        selectedNode = podDict[selected]
+        selectedPods.append(selectedNode)
+    return selectedPods
 
 if __name__ == "__main__":
-
+    """
     df = pd.read_excel("pod seçme.xlsx", sheet_name="POD ICERIKLERI")
     df_shape = df.shape
 
@@ -72,3 +85,7 @@ if __name__ == "__main__":
 
     itemList = [[435,1],[841,1]]
     selected = rawsimoPodSelection(itemList, result, a_rs)
+    """
+
+    itemList = [[435, 1], [841, 1]]
+    a = 10
