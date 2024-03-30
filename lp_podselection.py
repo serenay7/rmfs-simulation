@@ -156,7 +156,7 @@ def mainPodSelection(pod_nodes, station_nodes, max_percentage):
     print(podAndStation_distance)
 
     # total distances of combinations
-    combinationTotalDistance = calculate_total_distances_for_all_requirements(PS_distance, PS_combination)
+    combinationTotalDistance = calculate_total_distances_for_all_requirements(podAndStation_distance, combination)
 
     #print("total distances for each combination")
     #print(combinationTotalDistance)
@@ -177,7 +177,7 @@ def mainPodSelection(pod_nodes, station_nodes, max_percentage):
     result_idx = check_feasbility(combinationTotalDistance)
     requirement = combination[result_idx]
     testMatrix = columnMultiplication(podAndStation_distance, requirement)
-    assigned_pods, assigned_stations, total_distance = assign_pods_to_stations(PS_distance, requirement)
+    assigned_pods, assigned_stations, total_distance = assign_pods_to_stations(podAndStation_distance, requirement)
 
     if result_idx is not None:
         print("Index of the minimum value:", result_idx)
