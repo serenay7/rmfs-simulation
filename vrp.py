@@ -171,11 +171,11 @@ if __name__ == "__main__":
 
     distMatrix, nodes = distanceMatrixCreate(rectangular_network)
 
-    taskdf1 = pd.read_excel("2pickstation-2robot.xlsx", sheet_name="Sim3-East")
+    taskdf1 = pd.read_excel("2pickstation-2robot.xlsx", sheet_name="Sim2-East")
     taskdf1 = taskdf1["SimPy Location"]
     task1arr = np.unique(taskdf1.to_numpy())
 
-    taskdf2 = pd.read_excel("2pickstation-2robot.xlsx", sheet_name="Sim3-North")
+    taskdf2 = pd.read_excel("2pickstation-2robot.xlsx", sheet_name="Sim2-West")
     taskdf2 = taskdf2["SimPy Location"]
     task2arr = taskdf2.to_numpy()
     stacked_arr = np.concatenate((task1arr, task2arr))
