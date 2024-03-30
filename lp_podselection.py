@@ -31,20 +31,7 @@ def convert_to_tuple(node):
     """Convert a string representation of a tuple to an actual tuple of integers."""
     return tuple(map(int, node.strip('()').split(',')))
 
-rows = 10  # 3x3
-columns = 16
-rectangular_network, pos = koridor_deneme.create_rectangular_network_with_attributes(columns, rows)
-koridor_deneme.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-koridor_deneme.draw_network_with_shelves(rectangular_network, pos)
-network_corridors = koridor_deneme.create_corridor_subgraph(rectangular_network)
 
-distMatrix, nodes = distanceMatrixCreate(rectangular_network)
-
-###
-
-station_nodes = np.array(['(0,0)', '(15,0)']) # sol alt
-pod_nodes = np.array(['(1,1)', '(1,4)', '(1,7)', '(6,1)', '(6,4)', '(6,7)', '(11,1)', '(11,4)', '(11,7)',])
-max_percentage = 0.5
 
 def min_max_diff(combination, no_of_pods):
     min_values = np.min(combination, axis=1)
@@ -188,11 +175,27 @@ def mainPodSelection(pod_nodes, station_nodes, max_percentage):
 
     return podAndStation_distance, combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance
 
-PS_distance, PS_combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance = mainPodSelection(pod_nodes, station_nodes, max_percentage)
+if __name__ == "__main__":
+    rows = 10  # 3x3
+    columns = 16
+    rectangular_network, pos = koridor_deneme.create_rectangular_network_with_attributes(columns, rows)
+    koridor_deneme.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+    koridor_deneme.draw_network_with_shelves(rectangular_network, pos)
+    network_corridors = koridor_deneme.create_corridor_subgraph(rectangular_network)
 
-#requirements = np.array([7, 2])
-#testMatrix = columnMultiplication(PS_distance, requirements)
-#assigned_pods, assigned_stations, total_distance = assign_pods_to_stations(PS_distance, requirements)
+    distMatrix, nodes = distanceMatrixCreate(rectangular_network)
 
-# all_total_distances = calculate_total_distances_for_all_requirements(PS_distance, PS_combination)
-# print("all total distances", all_total_distances)
+    ###
+
+    station_nodes = np.array(['(0,0)', '(15,0)'])  # sol alt
+    pod_nodes = np.array(['(1,1)', '(1,4)', '(1,7)', '(6,1)', '(6,4)', '(6,7)', '(11,1)', '(11,4)', '(11,7)', ])
+    max_percentage = 0.5
+
+    PS_distance, PS_combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance = mainPodSelection(pod_nodes, station_nodes, max_percentage)
+
+    #requirements = np.array([7, 2])
+    #testMatrix = columnMultiplication(PS_distance, requirements)
+    #assigned_pods, assigned_stations, total_distance = assign_pods_to_stations(PS_distance, requirements)
+
+    # all_total_distances = calculate_total_distances_for_all_requirements(PS_distance, PS_combination)
+    # print("all total distances", all_total_distances)
