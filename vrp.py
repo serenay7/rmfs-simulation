@@ -119,6 +119,7 @@ def main(distanceMatrix, numVehicles, start_index, end_index):
     # Create Routing Model.
     routing = pywrapcp.RoutingModel(manager)
 
+
     # Create and register a transit callback.
     def distance_callback(from_index, to_index):
         """Returns the distance between the two nodes."""
@@ -158,9 +159,9 @@ def main(distanceMatrix, numVehicles, start_index, end_index):
         print_solution(data, manager, routing, solution)
 
 
-
+"""
 if __name__ == "__main__":
-
+    
     rows = 10  # 3x3
     columns = 16
 
@@ -197,3 +198,43 @@ if __name__ == "__main__":
     end_idx = [start_index, start_index]
 
     main(distMatrix_stacked, numVehicles, start_idx, end_idx)
+"""
+
+rows = 10  # 3x3
+columns = 16
+
+rectangular_network, pos = koridor_deneme.create_rectangular_network_with_attributes(columns, rows)
+koridor_deneme.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+koridor_deneme.draw_network_with_shelves(rectangular_network, pos)
+network_corridors = koridor_deneme.create_corridor_subgraph(rectangular_network)
+
+taskdf1 = pd.read_excel("2pickstation-2robot.xlsx", sheet_name="Sim2-East")
+taskdf1 = taskdf1["SimPy Location"]
+task1arr = np.unique(taskdf1.to_numpy())
+
+taskdf2 = pd.read_excel("2pickstation-2robot.xlsx", sheet_name="Sim2-West")
+taskdf2 = taskdf2["SimPy Location"]
+task2arr = taskdf2.to_numpy()
+stacked_arr = np.concatenate((task1arr, task2arr))
+
+numVehicles = 2
+
+def solve_vrp(numVehicles, rectangular_network, stacked_arr):
+    distMatrix, nodes = distanceMatrixCreate(rectangular_network)
+
+        # VRP
+    start_node = (0,0)
+    end_node = (0,0)
+
+    distMatrix_stacked, nodes_stacked = taskDistanceMatrix(stacked_arr, nodes, distMatrix, start_node, end_node)
+    start_index = get_node_index(nodes_stacked, start_node)
+    end_index = get_node_index(nodes_stacked, end_node)
+
+    start_idx = [start_index, start_index]
+    end_idx = [start_index, start_index]
+
+
+    return main(distMatrix_stacked, numVehicles, start_idx, end_idx)
+
+
+solve_vrp(numVehicles, rectangular_network, stacked_arr)
