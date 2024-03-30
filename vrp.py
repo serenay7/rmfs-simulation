@@ -119,6 +119,7 @@ def main(distanceMatrix, numVehicles, start_index, end_index):
     # Create Routing Model.
     routing = pywrapcp.RoutingModel(manager)
 
+
     # Create and register a transit callback.
     def distance_callback(from_index, to_index):
         """Returns the distance between the two nodes."""
@@ -159,18 +160,38 @@ def main(distanceMatrix, numVehicles, start_index, end_index):
 
 
 
-if __name__ == "__main__":
-
-    rows = 10  # 3x3
-    columns = 16
+def create_network(vertical, horizontal):
+#Vertical ve Horizontal  dimensionları verdiğimizde rows ve column hesaplayarak rectangular_network ve network_corridors'u output olarak verir
+    rows = (vertical*3) + 1
+    columns = (horizontal*5) + 1
 
     rectangular_network, pos = koridor_deneme.create_rectangular_network_with_attributes(columns, rows)
     koridor_deneme.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
     koridor_deneme.draw_network_with_shelves(rectangular_network, pos)
     network_corridors = koridor_deneme.create_corridor_subgraph(rectangular_network)
+    return rectangular_network, network_corridors
 
+def solve_vrp(numVehicles, rectangular_network, stacked_arr):
+    #Gerekli inputları oluşturup main'i çağırıyor
     distMatrix, nodes = distanceMatrixCreate(rectangular_network)
 
+        # VRP
+    start_node = (0,0)
+    end_node = (0,0)
+
+    distMatrix_stacked, nodes_stacked = taskDistanceMatrix(stacked_arr, nodes, distMatrix, start_node, end_node)
+    start_index = get_node_index(nodes_stacked, start_node)
+    end_index = get_node_index(nodes_stacked, end_node)
+    #Stacked array 2 columnlı verilebilir, columnlardan biri drop edilip kalan column 1-d array yapılacak
+    start_idx = [start_index, start_index]
+    end_idx = [start_index, start_index]
+
+
+    return main(distMatrix_stacked, numVehicles, start_idx, end_idx)
+
+
+if __name__ == "__main__":
+    #Test Case
     taskdf1 = pd.read_excel("2pickstation-2robot.xlsx", sheet_name="Sim2-East")
     taskdf1 = taskdf1["SimPy Location"]
     task1arr = np.unique(taskdf1.to_numpy())
@@ -179,21 +200,6 @@ if __name__ == "__main__":
     taskdf2 = taskdf2["SimPy Location"]
     task2arr = taskdf2.to_numpy()
     stacked_arr = np.concatenate((task1arr, task2arr))
-    print(distMatrix)
-    print(nodes)
-    ab=10
-    
-    # VRP
-    start_node = (0,0)
-    end_node = (0,0)
     numVehicles = 2
-
-    distMatrix_stacked, nodes_stacked = taskDistanceMatrix(stacked_arr, nodes, distMatrix, start_node, end_node)
-
-    start_index = get_node_index(nodes_stacked, start_node)
-    end_index = get_node_index(nodes_stacked, end_node)
-
-    start_idx = [start_index, start_index]
-    end_idx = [start_index, start_index]
-
-    main(distMatrix_stacked, numVehicles, start_idx, end_idx)
+    rectangular_network, network_corridors = create_network(3,3)
+    solve_vrp(numVehicles, rectangular_network, stacked_arr)
