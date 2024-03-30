@@ -72,10 +72,7 @@ def columnMultiplication(distanceMatrix, requirements):
 def column_to_station_mapping(requirements):
     """
     Create a mapping array from expanded matrix columns back to original station indices.
-
-    Parameters:
-    - requirements: np.array, where each element is the number of workers required for the corresponding station.
-
+    requirements: np.array, where each element is the number of workers required for the corresponding station.
     Returns:
     - np.array, where each element indicates the original station index for each column in the expanded matrix.
     """
@@ -157,21 +154,6 @@ def mainPodSelection(pod_nodes, station_nodes, max_percentage):
 
     print("pod and station distance")
     print(podAndStation_distance)
-
-    # Iterate through each combination
-    for combination_index, comb in enumerate(combination):
-        # Iterate through each pod
-        for pod_index in range(no_of_pods):
-            # Initialize the total distance for this pod in this combination
-            total_distance = 0
-            # Iterate through each station in the combination
-            for station_index, multiplier in enumerate(comb):
-                # Calculate the distance for this pod to this station, multiplied by the combination's multiplier
-                distance = podAndStation_distance[pod_index, station_index] * multiplier
-                # Add to the total distance for this pod in this combination
-                total_distance += distance
-            # Store the total distance in the matrix
-            combinationPodDistance[pod_index, combination_index] = total_distance
 
     # total distances of combinations
     combinationTotalDistance = calculate_total_distances_for_all_requirements(PS_distance, PS_combination)
