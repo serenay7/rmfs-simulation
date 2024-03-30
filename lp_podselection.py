@@ -5,6 +5,7 @@ from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, Stora
 import koridor_deneme
 import random
 import ast
+from scipy.optimize import linear_sum_assignment
 from vrp import distanceMatrixCreate
 
 def podAndStation_combination_recursive(pods, stations, current_distribution=[], all_distributions=[]):
@@ -58,6 +59,81 @@ def check_feasbility(arr):
         min_index = np.argmin(arr)
         return min_index
 
+def columnMultiplication(distanceMatrix, requirements):
+    """distanceMatrix: nparray rows as pods, columns as stations
+    requirements: nparray length is no of stations"""
+
+    new_columns = [np.repeat(distanceMatrix[:, i:i+1], repeats=req, axis=1) for i, req in enumerate(requirements)]
+    expanded_matrix = np.hstack(new_columns)
+
+    return expanded_matrix
+    
+
+def column_to_station_mapping(requirements):
+    """
+    Create a mapping array from expanded matrix columns back to original station indices.
+
+    Parameters:
+    - requirements: np.array, where each element is the number of workers required for the corresponding station.
+
+    Returns:
+    - np.array, where each element indicates the original station index for each column in the expanded matrix.
+    """
+    return np.concatenate([np.full(req, i) for i, req in enumerate(requirements)])
+
+def assign_pods_to_stations(distanceMatrix, requirements):
+    """
+    Assign pods to stations based on distanceMatrix and requirements using linear sum assignment,
+    with an expanded matrix to handle multiple worker requirements per station.
+
+    Parameters:
+    - distanceMatrix: np.array, rows as pods and columns as stations, containing distances or costs.
+    - requirements: np.array, length equal to the number of stations, indicating workers required per station.
+
+    Returns:
+    - A tuple of (assigned_pods, assigned_stations, total_distance), where:
+        - assigned_pods: np.array, indices of pods assigned to each task.
+        - assigned_stations: np.array, corresponding station indices for each assignment.
+        - total_distance: float, the sum of distances for the optimal assignment.
+    """
+    from scipy.optimize import linear_sum_assignment
+    
+    # Expand the distance matrix based on requirements
+    expanded_matrix = columnMultiplication(distanceMatrix, requirements)
+    
+    # Use linear sum assignment on the expanded matrix
+    row_ind, col_ind = linear_sum_assignment(expanded_matrix)
+    total_distance = expanded_matrix[row_ind, col_ind].sum()
+    
+    # Map the column indices in the expanded matrix back to original station indices
+    column_station_mapping = column_to_station_mapping(requirements)
+    assigned_stations = column_station_mapping[col_ind]
+    
+    return (row_ind, assigned_stations, total_distance)
+
+def calculate_total_distances_for_all_requirements(distanceMatrix, PS_combination):
+    """
+    Calculate total distances for each set of requirements in PS_combination.
+
+    Parameters:
+    - distanceMatrix: np.array, rows as pods and columns as stations, containing distances or costs.
+    - PS_combination: np.array, each row represents a set of requirements for the stations.
+
+    Returns:
+    - total_distances: np.array, containing the total distance for each set of requirements.
+    """
+    total_distances = np.zeros(len(PS_combination))  # Initialize an array to store total distances
+
+    # Iterate through each set of requirements in PS_combination
+    for i, requirements in enumerate(PS_combination):
+        # Use assign_pods_to_stations to calculate the total distance for the current set of requirements
+        _, _, total_distance = assign_pods_to_stations(distanceMatrix, requirements)
+        
+        # Store the calculated total distance in the array
+        total_distances[i] = total_distance
+    
+    return total_distances
+
 def mainPodSelection(pod_nodes, station_nodes, max_percentage):
     
     no_of_pods = len(pod_nodes)
@@ -97,12 +173,8 @@ def mainPodSelection(pod_nodes, station_nodes, max_percentage):
             # Store the total distance in the matrix
             combinationPodDistance[pod_index, combination_index] = total_distance
 
-    print("pod-combination distances")
-    print(combinationPodDistance)
-
     # total distances of combinations
-    combinationTotalDistance = np.zeros(shape=(1, no_of_combinations)) # empty matrix
-    combinationTotalDistance = np.sum(combinationPodDistance, axis=0)
+    combinationTotalDistance = calculate_total_distances_for_all_requirements(PS_distance, PS_combination)
 
     #print("total distances for each combination")
     #print(combinationTotalDistance)
@@ -121,15 +193,24 @@ def mainPodSelection(pod_nodes, station_nodes, max_percentage):
     print(combinationTotalDistance)
 
     result_idx = check_feasbility(combinationTotalDistance)
-    result_combination = combination[result_idx]
-    result_totalDistance = combinationTotalDistance[result_idx]
+    requirement = combination[result_idx]
+    testMatrix = columnMultiplication(podAndStation_distance, requirement)
+    assigned_pods, assigned_stations, total_distance = assign_pods_to_stations(PS_distance, requirement)
 
     if result_idx is not None:
-        print("Index of the minimum value in arr1:", result_idx)
-        print("Combination at index:", result_combination)
-        print("Total Distance at index:", result_totalDistance)
+        print("Index of the minimum value:", result_idx)
+        print("Combination at index:", requirement)
+        print("Total Distance at index:", total_distance)
+        print("assgned pods:", assigned_pods)
+        print("assgned stations:", assigned_stations)
 
-    return print("over")
+    return podAndStation_distance, combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance
 
-t = mainPodSelection(pod_nodes, station_nodes, max_percentage)
-t
+PS_distance, PS_combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance = mainPodSelection(pod_nodes, station_nodes, max_percentage)
+
+#requirements = np.array([7, 2])
+#testMatrix = columnMultiplication(PS_distance, requirements)
+#assigned_pods, assigned_stations, total_distance = assign_pods_to_stations(PS_distance, requirements)
+
+# all_total_distances = calculate_total_distances_for_all_requirements(PS_distance, PS_combination)
+# print("all total distances", all_total_distances)
