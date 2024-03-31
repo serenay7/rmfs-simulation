@@ -127,8 +127,7 @@ def mainPodSelection(pod_nodes, station_nodes, max_percentage):
 
     combination = podAndStation_combination(no_of_pods,no_of_stations)
     no_of_combinations = len(combination)
-    
-    combinationPodDistance = np.zeros(shape=(no_of_pods, no_of_combinations)) # empty matrix
+
 
     # Convert the string representations to tuples
     station_nodes_tuples = np.array([convert_to_tuple(node) for node in station_nodes])
