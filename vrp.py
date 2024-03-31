@@ -5,6 +5,7 @@ import pandas as pd
 import ast
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
+import generators
 
 def distanceMatrixCreate(G):
     """Takes a network as input, returns a Distance Matrix and the list of nodes."""
@@ -160,17 +161,6 @@ def main(distanceMatrix, numVehicles, start_index, end_index):
 
 
 
-def create_network(vertical, horizontal):
-#Vertical ve Horizontal  dimensionları verdiğimizde rows ve column hesaplayarak rectangular_network ve network_corridors'u output olarak verir
-    rows = (vertical*3) + 1
-    columns = (horizontal*5) + 1
-
-    rectangular_network, pos = koridor_deneme.create_rectangular_network_with_attributes(columns, rows)
-    koridor_deneme.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-    koridor_deneme.draw_network_with_shelves(rectangular_network, pos)
-    network_corridors = koridor_deneme.create_corridor_subgraph(rectangular_network)
-    return rectangular_network, network_corridors
-
 def solve_vrp(numVehicles, rectangular_network, stacked_arr):
     #Gerekli inputları oluşturup main'i çağırıyor
     distMatrix, nodes = distanceMatrixCreate(rectangular_network)
@@ -201,5 +191,5 @@ if __name__ == "__main__":
     task2arr = taskdf2.to_numpy()
     stacked_arr = np.concatenate((task1arr, task2arr))
     numVehicles = 2
-    rectangular_network, network_corridors = create_network(3,3)
+    rectangular_network, network_corridors = generators.create_network(3,3)
     solve_vrp(numVehicles, rectangular_network, stacked_arr)
