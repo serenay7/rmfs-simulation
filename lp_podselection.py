@@ -217,10 +217,22 @@ def PhaseIExperiment(orderList, podMatrix, network, stationNodes, max_percentage
     # assigned_stations hangi pod nereye atandı
 
     # rawsimo kısmı
-    orderListDivided = np.reshape(orderList, newshape=(
-    len(stationNodes), orderList.shape[0] // len(stationNodes), orderList.shape[1]))
+    def manhattan_distance(tuple1, tuple2):
+        return sum(abs(a - b) for a, b in zip(tuple1, tuple2))
+
+    def sum_manhattan_distance(target_tuple, list_of_tuples):
+        return sum(manhattan_distance(target_tuple, t) for t in list_of_tuples)
+
+    orderListDivided = np.reshape(orderList, newshape=(len(stationNodes), orderList.shape[0] // len(stationNodes), orderList.shape[1]))
+    numSelectedPods = 0
+    totalDist = 0
     for stationIdx, stationLocation in enumerate(stationNodes):
-        selectedPodNodes = podSelectionLP(orderListDivided[stationIdx], podMatrix)
+        itemListDivided = np.sum(orderListDivided[stationIdx], axis=0)
+        itemListDivided = [[sku, int(amount)] for sku, amount in enumerate(itemListDivided)]
+        selectedPodNodes = podSelectionLP(itemListDivided, podDict, podMatrix)
+        numSelectedPods += len(selectedPodNodes)
+        totalDist += sum_manhattan_distance(eval(stationLocation), selectedPodNodes)
+
 
 
 if __name__ == "__main__":
