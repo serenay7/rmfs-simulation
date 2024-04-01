@@ -116,3 +116,48 @@ if __name__ == "__main__":
 # output_station = OutputStation(env, location, pickItemList)
 # After some simulation steps where PickItems might be called
 # print(f"PickItems was called {output_station.getPickItemsCount()} times.")
+
+'''import numpy as np
+import random
+
+def generate_distribution_matrix(s, r, k, lower_bound, upper_bound):
+    # Ensure k does not exceed the number of pods
+    k = min(k, r)
+    
+    # Initialize the distribution matrix with zeros
+    matrix = np.zeros((s, r), dtype=int)
+    
+    # Ensure every pod gets at least one SKU, if possible
+    for sku in range(s):
+        # Randomly select k unique pods for this SKU
+        pods = random.sample(range(r), k)
+        for pod in pods:
+            # Assign a random amount within the bounds to this SKU in these pods
+            matrix[sku, pod] = random.randint(lower_bound, upper_bound)
+    
+    # Check if there are any empty pods and try to redistribute if any
+    for pod in range(r):
+        if not matrix[:, pod].any():
+            # Find a SKU and pod to redistribute
+            for sku in range(s):
+                if sum(matrix[sku, :]) > 1:  # SKU must be in more than one pod to redistribute
+                    redistribute_pod = random.choice([p for p in range(r) if matrix[sku, p] > 0])
+                    # Move a portion of the SKU from one pod to the empty pod
+                    amount_to_move = matrix[sku, redistribute_pod] // 2
+                    matrix[sku, redistribute_pod] -= amount_to_move
+                    matrix[sku, pod] += amount_to_move
+                    break
+    
+    return matrix.tolist()
+
+# Example usage
+s = 5  # SKUs
+r = 3  # Pods
+k = 2  # Max pods per SKU
+lower_bound = 1
+upper_bound = 100
+
+# Generate and print the distribution matrix
+distribution_matrix = generate_distribution_matrix(s, r, k, lower_bound, upper_bound)
+distribution_matrix
+'''

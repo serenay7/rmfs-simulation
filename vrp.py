@@ -6,6 +6,7 @@ import ast
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 import generators
+from generators import taskGenerator
 
 def distanceMatrixCreate(G):
     """Takes a network as input, returns a Distance Matrix and the list of nodes."""
@@ -85,24 +86,41 @@ def create_data_model(distanceMatrix, numVehicles, start_index, end_index):
 
 def print_solution(data, manager, routing, solution):
     """Prints solution on console."""
+    output_list = [solution.ObjectiveValue()]
     print(f"Objective: {solution.ObjectiveValue()}")
     max_route_distance = 0
+    
     for vehicle_id in range(data["num_vehicles"]):
+        output_list.append(vehicle_id)
+
         index = routing.Start(vehicle_id)
         plan_output = f"Route for vehicle {vehicle_id}:\n"
         route_distance = 0
+        # route_array = np.array([index])
+        route_array = np.array([])
+
         while not routing.IsEnd(index):
+            plan = manager.IndexToNode(index)
             plan_output += f" {manager.IndexToNode(index)} -> "
             previous_index = index
             index = solution.Value(routing.NextVar(index))
             route_distance += routing.GetArcCostForVehicle(
                 previous_index, index, vehicle_id
             )
+            route_array = np.append(route_array, plan)
+
+    
+        last = manager.IndexToNode(index)
         plan_output += f"{manager.IndexToNode(index)}\n"
+        route_array = np.append(route_array, last)
+        output_list.append(route_array)
         plan_output += f"Distance of the route: {route_distance}m\n"
+        output_list.append(route_distance)
         print(plan_output)
         max_route_distance = max(route_distance, max_route_distance)
     print(f"Maximum of the route distances: {max_route_distance}m")
+    
+    return output_list
 
 
 def main(distanceMatrix, numVehicles, start_index, end_index):
@@ -157,10 +175,31 @@ def main(distanceMatrix, numVehicles, start_index, end_index):
 
     # Print solution on console.
     if solution:
-        print_solution(data, manager, routing, solution)
+        dflist = print_solution(data, manager, routing, solution)
+        return data, manager, routing, solution, dflist
 
+def list_to_df(numVehicles, input_list): # doldurulcak
+    # Create an empty DataFrame with n rows and 3 columns
+    df = pd.DataFrame(columns=['Vehicle No', 'Route', 'Distance'], index=range(numVehicles))
 
+    input_list = input_list[1:]
 
+    for i in range(len(input_list)):
+        if i == 0 or i % 3 == 0:
+            x = i/3
+            df.at[x, 'Vehicle No'] = input_list[i]
+
+        elif i == 1 or i % 3 == 1:
+            x = (i-1)/3
+            df.at[x, 'Route'] = input_list[i]
+        
+        elif i == 2 or i % 3 == 2:
+            x = (i-2)/3
+            df.at[x, 'Distance'] = input_list[i]
+    
+    df.to_excel('vrp_output.xlsx', index=False)
+    return df
+    
 def solve_vrp(numVehicles, rectangular_network, stacked_arr):
     #Gerekli inputları oluşturup main'i çağırıyor
     distMatrix, nodes = distanceMatrixCreate(rectangular_network)
@@ -175,10 +214,19 @@ def solve_vrp(numVehicles, rectangular_network, stacked_arr):
     #Stacked array 2 columnlı verilebilir, columnlardan biri drop edilip kalan column 1-d array yapılacak
     start_idx = [start_index, start_index]
     end_idx = [start_index, start_index]
+    data, manager, routing, solution, dflist = main(distMatrix_stacked, numVehicles, start_idx, end_idx)
+    df = list_to_df(numVehicles, dflist)
 
+    return data, manager, routing, solution, df
 
-    return main(distMatrix_stacked, numVehicles, start_idx, end_idx)
+def VRP_experiment(network, numTask, numRobot, numVehicles):
+    
+    tasks_and_robots = taskGenerator(network, numTask, numRobot)
+    tasks = tasks_and_robots[:, 0]
+    data, manager, routing, solution, df = solve_vrp(numVehicles, network, tasks)
+    print("over")
 
+    return data, manager, routing, solution, df
 
 if __name__ == "__main__":
     #Test Case
@@ -192,4 +240,9 @@ if __name__ == "__main__":
     stacked_arr = np.concatenate((task1arr, task2arr))
     numVehicles = 2
     rectangular_network, network_corridors = generators.create_network(3,3)
-    solve_vrp(numVehicles, rectangular_network, stacked_arr)
+    print("before")
+    xdata, xmanager, xrouting, xsolution, xdf = solve_vrp(numVehicles, rectangular_network, stacked_arr)
+    print("the end")
+
+    # Write the DataFrame to an Excel file
+    # df.to_excel('output.xlsx', index=False)
