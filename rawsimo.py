@@ -63,6 +63,25 @@ def rawsimoTaskAssignment(taskList, numRobots):
         totalDistance += manhattan_distance_between_consecutive_rows(filtered_arr)
     return totalDistance
 
+
+def rawsimoOrderPodSelection(orders, numStation, podMatrix):
+    selectedPods = []
+
+    orderPerStation = len(orders)//numStation
+
+    ordersDivided = orders.reshape((numStation,orderPerStation,orders.shape[1]))
+
+    for order in ordersDivided:
+        temp_pod_matrix = podMatrix.copy()
+
+        #while order.shape[1] > 0:
+        while np.sum(order) > 0:
+            selectedPod, fulfilledSKU = rawsimoPodSelectionExperiment(orderMatrix=order, podMatrix=temp_pod_matrix)
+            order = np.delete(order, fulfilledSKU, axis=1)
+            temp_pod_matrix = np.delete(temp_pod_matrix, fulfilledSKU, axis=1)
+            selectedPods.append(selectedPod)
+    return selectedPods
+
 def podSelectionLP(itemList, podDict, podMatrix):
 
     selectedPods = []

@@ -96,19 +96,19 @@ def flexible_amount_warehouse_distribution(s, r, k, lower_bound, upper_bound):
     
     return distribution_matrix
 
+if __name__ == "__main__":
+    s = 5  # Number of SKUs
+    r = 10  # Number of storage pods
+    n = 20  # Number of each SKU stored in the warehouse
+    k = 5  # Maximum number of pods for each SKU
+    lower_bound = 10  # Lower bound of the amount interval
+    upper_bound = 20  # Upper bound of the amount interval
 
-s = 5  # Number of SKUs
-r = 10  # Number of storage pods
-n = 20  # Number of each SKU stored in the warehouse
-k = 5  # Maximum number of pods for each SKU
-lower_bound = 10  # Lower bound of the amount interval
-upper_bound = 20  # Upper bound of the amount interval
+    # random_warehouse = random_warehouse_distribution(s, r, n)
+    # print(random_warehouse)
 
-# random_warehouse = random_warehouse_distribution(s, r, n)
-# print(random_warehouse)
+    # distribution_matrix = flexible_warehouse_distribution(s, r, n, k)
+    # print(distribution_matrix)
 
-# distribution_matrix = flexible_warehouse_distribution(s, r, n, k)
-# print(distribution_matrix)
-
-distribution_matrix = flexible_amount_warehouse_distribution(s, r, k, lower_bound, upper_bound)
-print(distribution_matrix)
+    distribution_matrix = flexible_amount_warehouse_distribution(s, r, k, lower_bound, upper_bound)
+    print(distribution_matrix)

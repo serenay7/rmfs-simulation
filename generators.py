@@ -14,12 +14,28 @@ def create_network(vertical, horizontal):
     network_corridors = koridor_deneme.create_corridor_subgraph(rectangular_network)
     return rectangular_network, network_corridors
 
-def taskGenerator(network, numTask, numStation):
+def taskGenerator(network, numTask, numRobot):
+    """Generates 2d np array for tasks. First column location of the pod (tuple), second column assigned robot (int)"""
     nodesDict = network._node  # kendi node değişkeninden farklı, pod olup olmadığının bilgisini de dict olarak veriyor
     shelvesNetworkNodes = {k: v for k, v in nodesDict.items() if v == {'shelf': True}}
-    random.sample(list(shelvesNetworkNodes.keys()), numTask)
+    randomPodsList = random.sample(list(shelvesNetworkNodes.keys()), numTask)
+    tasks = []
+    for idx, task in enumerate(randomPodsList):
+        tasks.append([task, idx % numRobot])
+    tasksArr = np.array(tasks, dtype="object")
+    return tasksArr
+
+
+def orderGenerator(stationCapacity, numStation, numSKU, maxAmount=1):
+    orders = np.zeros(shape=(stationCapacity*numStation, numSKU))
+
+    for i in range(stationCapacity * numStation):
+        for j in range(numSKU):
+            orders[i, j] = np.random.randint(0, maxAmount + 1)
+
+    return orders
 
 if __name__ == "__main__":
     rectangular_network, network_corridors = create_network(3, 3)
-
+    tasks = taskGenerator(rectangular_network, 9, 3)
     a = 10
