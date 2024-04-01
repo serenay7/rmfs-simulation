@@ -216,6 +216,7 @@ def PhaseIExperiment(orderList, podMatrix, network, stationNodes, max_percentage
         selectedPodNodes, stationNodes, max_percentage)
     # assigned_stations hangi pod nereye atandı
 
+
     # rawsimo kısmı
     def manhattan_distance(tuple1, tuple2):
         return sum(abs(a - b) for a, b in zip(tuple1, tuple2))
