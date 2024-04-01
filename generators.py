@@ -26,16 +26,19 @@ def taskGenerator(network, numTask, numRobot):
     return tasksArr
 
 
-def orderGenerator(stationCapacity, numStation, numSKU, maxAmount=1):
+def orderGenerator(stationCapacity, numStation, numSKU, maxAmount=1, skuExistencethreshold=0.7):
     orders = np.zeros(shape=(stationCapacity*numStation, numSKU))
-
+    # boş order yollayabilir DİKKAT
     for i in range(stationCapacity * numStation):
         for j in range(numSKU):
-            orders[i, j] = np.random.randint(0, maxAmount + 1)
+            if random.random() > skuExistencethreshold:
+                orders[i, j] = np.random.randint(1, maxAmount + 1)
 
     return orders
 
 if __name__ == "__main__":
     rectangular_network, network_corridors = create_network(3, 3)
     tasks = taskGenerator(rectangular_network, 9, 3)
+    orders = orderGenerator(10,2,10,5)
+    sums = np.sum(orders, axis=1)
     a = 10

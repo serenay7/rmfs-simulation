@@ -82,15 +82,7 @@ def rawsimoOrderPodSelection(orders, numStation, podMatrix):
             selectedPods.append(selectedPod)
     return selectedPods
 
-def podSelectionLP(itemList, podDict, podMatrix):
 
-    selectedPods = []
-    while len(itemList) > 0:
-        selected, satisfiedSKU = rawsimoPodSelectionExperiment(itemList=itemList, podMatrix=podMatrix)
-        itemList = [sublist for sublist in itemList if sublist[0] not in satisfiedSKU]
-        selectedNode = podDict[selected]
-        selectedPods.append(selectedNode)
-    return selectedPods
 
 if __name__ == "__main__":
     """

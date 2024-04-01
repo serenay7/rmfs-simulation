@@ -167,7 +167,7 @@ def main(distanceMatrix, numVehicles, start_index, end_index):
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
+        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC #initial solution için buradaki yöntemi kullanıyor
     )
 
     # Solve the problem.
