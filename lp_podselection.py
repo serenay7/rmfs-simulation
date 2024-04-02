@@ -129,13 +129,17 @@ def calculate_total_distances_for_all_requirements(distanceMatrix, PS_combinatio
     return total_distances
 
 
-def podSelectionLP(itemList, podDict, podMatrix):
+def podSelectionLP(itemList, podDict, podMatrix, satisfiedReturn = False):
     selectedPodNodes = []
+    satisfiedList = []
     while len(itemList) > 0:
         selected, satisfiedSKU = rawsimo.rawsimoPodSelectionExperiment(itemList=itemList, podMatrix=podMatrix)
         itemList = [sublist for sublist in itemList if sublist[0] not in satisfiedSKU]
         selectedNode = podDict[selected]
         selectedPodNodes.append(selectedNode)
+        satisfiedList.append(satisfiedSKU)
+    if satisfiedReturn:
+        return selectedPodNodes, satisfiedList
 
     return selectedPodNodes
 
@@ -209,7 +213,7 @@ def PhaseIExperiment(orderList, podMatrix, network, stationNodes, max_percentage
     shelvesNetworkNodes = {k: v for k, v in nodesDict.items() if v == {'shelf': True}}.keys()
     # podların indexi ve nodelar arasındaki bağlantıyı gösteren dictionary, pod listesindeki sıraya göre podları labellıyor
     podDict = {k: v for k, v in enumerate(shelvesNetworkNodes)}
-    selectedPodNodes = podSelectionLP(itemList, podDict, podMatrix)
+    selectedPodNodes, satisfiedList = podSelectionLP(itemList, podDict, podMatrix, satisfiedReturn=True)
 
     # bu kısım mainPodAssignment ile inputlar uyumlu olsun diye yapıldı
     selectedPodNodes = [str(i) for i in selectedPodNodes]

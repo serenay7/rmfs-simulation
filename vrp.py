@@ -207,14 +207,17 @@ def solve_vrp(numVehicles, rectangular_network, stacked_arr):
 
         # VRP
     start_node = (0,0)
-    end_node = (0,0)
+    nodes = list(rectangular_network.nodes)
+    end_node = nodes[-1]
 
     distMatrix_stacked, nodes_stacked = taskDistanceMatrix(stacked_arr, nodes, distMatrix, start_node, end_node)
     start_index = get_node_index(nodes_stacked, start_node)
     end_index = get_node_index(nodes_stacked, end_node)
     #Stacked array 2 columnlı verilebilir, columnlardan biri drop edilip kalan column 1-d array yapılacak
-    start_idx = [start_index, start_index]
-    end_idx = [start_index, start_index]
+    start_idx = [start_index for idx in range(numVehicles)]
+    #if numVehicles == 4: start_idx = [0,0,20,20]
+    end_idx = [end_index for idx in range(numVehicles)]
+    #if numVehicles == 4: end_idx = [0, 0, 20, 20]
     data, manager, routing, solution, dflist = main(distMatrix_stacked, numVehicles, start_idx, end_idx)
     df = list_to_df(numVehicles, dflist)
 
@@ -251,6 +254,7 @@ def PhaseIIExperiment(network_list, numRobot_list, numTask_list):
     writer_rawsimo = pd.ExcelWriter(excel_rawsimo_file, engine='xlsxwriter')
 
     for idx, networkSTR in enumerate(network_list):
+        print(networkSTR)
         dimensions = networkSTR.split("x")
         row = int(dimensions[0])
         column = int(dimensions[1])
@@ -266,11 +270,11 @@ def PhaseIIExperiment(network_list, numRobot_list, numTask_list):
         df = solve_vrp(current_robot , current_network, tasks)
         df.to_excel(writer, sheet_name=sheet_name, index=False)
 
-        #df_rawsimo = filter_and_calculate_distance(current_robot, current_tasklist)
-        #df_rawsimo.to_excel(writer, sheet_name=sheet_name, index=False)
+        df_rawsimo = filter_and_calculate_distance(current_robot, current_tasklist)
+        df_rawsimo.to_excel(writer_rawsimo, sheet_name=sheet_name, index=False)
     
-    writer.save()
-    writer_rawsimo.save()
+    writer._save()
+    writer_rawsimo._save()
 
     return print("Phase II experiment is over.")
 

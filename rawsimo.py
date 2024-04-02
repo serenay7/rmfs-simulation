@@ -4,7 +4,17 @@ import pandas as pd
 
 def manhattan_distance_between_consecutive_rows(arr):
     # Convert array of tuples to a NumPy array
-    arr = np.array(arr)
+    tuples_list = []
+
+    # Iterate over the elements of the 1D array and extract the components of each tuple
+    for element in arr:
+        # Remove parentheses and split by comma to get individual components
+        components = element.strip('()').split(',')
+        # Convert components to integers and append to tuples_list
+        tuples_list.append([int(component) for component in components])
+
+    # Convert the list of tuples to a NumPy array
+    arr = np.array(tuples_list)
 
     # Calculate Manhattan distances
     x_diff = np.abs(arr[:-1, 0] - arr[1:, 0])
