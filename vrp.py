@@ -249,17 +249,19 @@ def PhaseIIExperiment(network_list, numRobot_list, numTask_list):
 
     writer = pd.ExcelWriter(excel_file, engine='xlsxwriter')
     writer_rawsimo = pd.ExcelWriter(excel_rawsimo_file, engine='xlsxwriter')
-    
-    for i in range(len(network_list)):
-        df = 0
-        df_rawsimo = 0
-        sheet_name = f'Sheet_{i}'
-        current_network = network_list[i]
 
-        current_tasklist = numTask_list[i]
+    for idx, networkSTR in enumerate(network_list):
+        dimensions = networkSTR.split("x")
+        row = int(dimensions[0])
+        column = int(dimensions[1])
+        network, network_corridors = generators.create_network(vertical=row, horizontal=column)
+        sheet_name = f'Sheet_{idx}'
+        current_network = network
+
+        current_tasklist = numTask_list[idx]
         tasks = current_tasklist[:, 0]
 
-        current_robot = numRobot_list[i] #numRobots
+        current_robot = numRobot_list[idx] #numRobots
 
         df = solve_vrp(current_robot , current_network, tasks)
         df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -275,6 +277,7 @@ def PhaseIIExperiment(network_list, numRobot_list, numTask_list):
 
 if __name__ == "__main__":
     #Test Case
+    """
     taskdf1 = pd.read_excel("2pickstation-2robot.xlsx", sheet_name="Sim2-East")
     taskdf1 = taskdf1["SimPy Location"]
     task1arr = np.unique(taskdf1.to_numpy())
@@ -288,7 +291,7 @@ if __name__ == "__main__":
     #print("before")
     #xdata, xmanager, xrouting, xsolution, xdf = solve_vrp(numVehicles, rectangular_network, stacked_arr)
     #print("the end")
-
+    
     tasks_and_robots = taskGenerator(rectangular_network, 5, 2)
     tasks = tasks_and_robots[:, 0]
     dist = filter_and_calculate_distance(2, tasks_and_robots)
@@ -296,3 +299,16 @@ if __name__ == "__main__":
 
     # Write the DataFrame to an Excel file
     # df.to_excel('output.xlsx', index=False)
+    """
+    networkList = ["4x8", "4x8", "5x5", "5x5", "6x12", "6x12", "8x8", "8x8", "10x20", "10x20"]
+    numRobotList = [2, 4, 2, 4, 2, 4, 2, 4, 2, 4]
+    taskList = []
+    for idx, network in enumerate(networkList):
+        dimensions = network.split("x")
+        row = int(dimensions[0])
+        column = int(dimensions[1])
+        network, network_corridors = generators.create_network(vertical=row, horizontal=column)
+        task = generators.taskGenerator(network, 20, numRobotList[idx])
+        taskList.append(task)
+
+    PhaseIIExperiment(networkList, numRobotList, taskList)

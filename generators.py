@@ -21,6 +21,7 @@ def taskGenerator(network, numTask, numRobot):
     randomPodsList = random.sample(list(shelvesNetworkNodes.keys()), numTask)
     tasks = []
     for idx, task in enumerate(randomPodsList):
+        task = str(task)
         tasks.append([task, idx % numRobot])
     tasksArr = np.array(tasks, dtype="object")
     return tasksArr
