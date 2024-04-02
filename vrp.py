@@ -198,7 +198,7 @@ def list_to_df(numVehicles, input_list):
             x = (i-2)/3
             df.at[x, 'Distance'] = input_list[i]
     
-    df.to_excel('vrp_output.xlsx', index=False)
+    #df.to_excel('vrp_output.xlsx', index=False)
     return df
     
 def solve_vrp(numVehicles, rectangular_network, stacked_arr):
