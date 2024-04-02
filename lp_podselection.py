@@ -201,7 +201,7 @@ def mainPodAssignment(pod_nodes, station_nodes, max_percentage):
     return podAndStation_distance, combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance
 
 
-def PhaseIExperiment(orderList, podMatrix, network, stationNodes, max_percentage=0.5):
+def PhaseIExperiment(orderList, podMatrix, network, stationNodes, max_percentage=0.5, returnSelected=False):
     # bizim assignment problem kısmı
     itemList = np.sum(orderList, axis=0)
     itemList = [[sku, int(amount)] for sku, amount in enumerate(itemList)]
@@ -233,9 +233,12 @@ def PhaseIExperiment(orderList, podMatrix, network, stationNodes, max_percentage
     for stationIdx, stationLocation in enumerate(stationNodes):
         itemListDivided = np.sum(orderListDivided[stationIdx], axis=0)
         itemListDivided = [[sku, int(amount)] for sku, amount in enumerate(itemListDivided)]
-        selectedPodNodes = podSelectionLP(itemListDivided, podDict, podMatrix)
-        numSelectedPodsRawsimo += len(selectedPodNodes)
-        totalDistRawsimo += sum_manhattan_distance(eval(stationLocation), selectedPodNodes)
+        selectedPodNodesRawsimo = podSelectionLP(itemListDivided, podDict, podMatrix)
+        numSelectedPodsRawsimo += len(selectedPodNodesRawsimo)
+        totalDistRawsimo += sum_manhattan_distance(eval(stationLocation), selectedPodNodesRawsimo)
+
+    if returnSelected:
+        return selectedPodNodes, numSelectedPodsP1, int(total_distance), selectedPodNodesRawsimo, numSelectedPodsRawsimo, totalDistRawsimo
 
     return numSelectedPodsP1, int(total_distance), numSelectedPodsRawsimo, totalDistRawsimo
 
@@ -272,9 +275,9 @@ def PhaseIExperimentOuter(networkList, numRepeatForInstance, orderPerStation=20)
         column = int(dimensions[1])
         network, network_corridors = generators.create_network(vertical=row, horizontal=column)
 
-        s = 50  # Number of SKUs
+        s = 100  # Number of SKUs
         r = row*column*8  # Number of storage pods
-        k = r*2//10  # Maximum number of pods for each SKU
+        k = r*1//10  # Maximum number of pods for each SKU
         lower_bound = 100  # Lower bound of the amount interval
         upper_bound = 200  # Upper bound of the amount interval
 
