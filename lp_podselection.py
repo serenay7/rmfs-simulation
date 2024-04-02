@@ -28,7 +28,6 @@ def podAndStation_combination(pods, stations):
     # Get all distributions
     distributions = podAndStation_combination_recursive(pods, stations)
     # Convert the list of distributions to a NumPy array
-    min_length = max(len(lst) for lst in distributions)
     distributions = [lst for lst in distributions if len(lst) == stations]
     distributions = [lst for lst in distributions if sum(lst) == pods]
     distribution_matrix = np.array(distributions)
@@ -158,8 +157,8 @@ def mainPodAssignment(pod_nodes, station_nodes, max_percentage):
             distance = abs(pod[0] - station[0]) + abs(pod[1] - station[1])
             podAndStation_distance[i, j] = distance
 
-    print("pod and station distance")
-    print(podAndStation_distance)
+    # print("pod and station distance")
+    # print(podAndStation_distance)
 
     # total distances of combinations
     combinationTotalDistance = calculate_total_distances_for_all_requirements(podAndStation_distance, combination)
@@ -177,20 +176,20 @@ def mainPodAssignment(pod_nodes, station_nodes, max_percentage):
     # Set the values at these indexes in combinationTotalDistance to infinity
     combinationTotalDistance[exceed_indexes] = np.inf
 
-    print("Adjusted total distances for each combination")
-    print(combinationTotalDistance)
+    #print("Adjusted total distances for each combination")
+    #print(combinationTotalDistance)
 
     result_idx = check_feasbility(combinationTotalDistance)
     requirement = combination[result_idx]
     testMatrix = columnMultiplication(podAndStation_distance, requirement)
     assigned_pods, assigned_stations, total_distance = assign_pods_to_stations(podAndStation_distance, requirement)
 
-    if result_idx is not None:
-        print("Index of the minimum value:", result_idx)
-        print("Combination at index:", requirement)
-        print("Total Distance at index:", total_distance)
-        print("assgned pods:", assigned_pods)
-        print("assgned stations:", assigned_stations)
+    #if result_idx is not None:
+        # print("Index of the minimum value:", result_idx)
+        # print("Combination at index:", requirement)
+        # print("Total Distance at index:", total_distance)
+        # print("assgned pods:", assigned_pods)
+        # print("assgned stations:", assigned_stations)
 
     # PS_distance = her podun her istasyona uzaklığı
     # PS_combination = all possible combinations
@@ -275,7 +274,7 @@ def PhaseIExperimentOuter(networkList, numRepeatForInstance, orderPerStation=20)
 
         s = 50  # Number of SKUs
         r = row*column*8  # Number of storage pods
-        k = r*3//10  # Maximum number of pods for each SKU
+        k = r*2//10  # Maximum number of pods for each SKU
         lower_bound = 100  # Lower bound of the amount interval
         upper_bound = 200  # Upper bound of the amount interval
 
@@ -347,7 +346,7 @@ if __name__ == "__main__":
 
     networkList = ["5x5", "6x12", "8x8", "10x20"]
     resultDF = PhaseIExperimentOuter(networkList,10)
-
+    resultDF.to_excel("PhaseIExperiment.xlsx")
 
     #podMatrix = podstorage.generate_distribution_matrix(s, r, k, lower_bound, upper_bound).T
     #orderList = generators.orderGenerator(5, 2, s, 5)
