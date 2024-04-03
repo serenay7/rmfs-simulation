@@ -235,7 +235,7 @@ def filter_and_calculate_distance(numVehicles, tasks):
     distances_per_robot = []
 
     for robot_number in range(numVehicles):
-        filtered_nodes = np.array([node[0] for node in tasks if node[1] == robot_number])
+        filtered_nodes = np.array([node[0] for node in tasks if int(node[1]) == robot_number])
         distance = manhattan_distance_between_consecutive_rows(filtered_nodes)
         distances_per_robot.append(distance)
 
