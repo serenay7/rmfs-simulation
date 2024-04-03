@@ -256,11 +256,17 @@ def stationLocationFinder(network, numStation):
     nodes = list(network.nodes)
     station_nodes = []
 
+    # if numStation == 2:
+    #     firstStation = ((nodes[0][0] + nodes[-1][0])//2, nodes[0][1])
+    #     station_nodes.append(str(firstStation))
+    #     secondStation = ((nodes[0][0] + nodes[-1][0])//2,nodes[-1][1])
+    #     station_nodes.append(str(secondStation))
     if numStation == 2:
-        firstStation = ((nodes[0][0] + nodes[-1][0])//2, nodes[0][1])
+        firstStation = (nodes[0][0], (nodes[0][1] + nodes[-1][1])//2)
         station_nodes.append(str(firstStation))
-        secondStation = ((nodes[0][0] + nodes[-1][0])//2,nodes[-1][1])
+        secondStation = (nodes[-1][0], (nodes[0][1] + nodes[-1][1])//2)
         station_nodes.append(str(secondStation))
+
     elif numStation == 4:
         firstStation = ((nodes[0][0] + nodes[-1][0]) // 2, nodes[0][1])
         station_nodes.append(str(firstStation))

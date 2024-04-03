@@ -60,11 +60,11 @@ def taskDistanceMatrix(tasks, nodes, distanceMatrix, start_node, end_node):
 
     formatted_tasks = convert_string_tuples_to_int_tuples(tasks.tolist())
 
-    if start_node not in formatted_tasks:
-        formatted_tasks.append(start_node)
+    #if start_node not in formatted_tasks:
+    #    formatted_tasks.append(start_node)
 
-    if end_node not in formatted_tasks:
-        formatted_tasks.append(end_node)
+    #if end_node not in formatted_tasks:
+    #    formatted_tasks.append(end_node)
     
     matching_indexes = [i for i, item in enumerate(nodes) if item in formatted_tasks]
 
@@ -312,7 +312,8 @@ if __name__ == "__main__":
         row = int(dimensions[0])
         column = int(dimensions[1])
         network, network_corridors = generators.create_network(vertical=row, horizontal=column)
-        task = generators.taskGenerator(network, 20, numRobotList[idx])
+        #task = generators.taskGenerator(network, 20, numRobotList[idx])
+        task = generators.taskGenerator(network, numRobotList[idx]*10, numRobotList[idx])
         taskList.append(task)
 
     PhaseIIExperiment(networkList, numRobotList, taskList)
