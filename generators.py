@@ -8,10 +8,10 @@ def create_network(vertical, horizontal):
     rows = (vertical*3) + 1
     columns = (horizontal*5) + 1
 
-    rectangular_network, pos = koridor_deneme.create_rectangular_network_with_attributes(columns, rows)
-    koridor_deneme.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+    rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
+    layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
     #koridor_deneme.draw_network_with_shelves(rectangular_network, pos)
-    network_corridors = koridor_deneme.create_corridor_subgraph(rectangular_network)
+    network_corridors = layout.create_corridor_subgraph(rectangular_network)
     return rectangular_network, network_corridors
 
 def taskGenerator(network, numTask, numRobot):
