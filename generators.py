@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import random
-import koridor_deneme
+import layout
 
 def create_network(vertical, horizontal):
 #Vertical ve Horizontal  dimensionları verdiğimizde rows ve column hesaplayarak rectangular_network ve network_corridors'u output olarak verir
@@ -28,9 +28,11 @@ def taskGenerator(network, numTask, numRobot):
 
 
 def orderGenerator(stationCapacity, numStation, numSKU, maxAmount=1, skuExistencethreshold=0.7):
-    orders = np.zeros(shape=(stationCapacity*numStation, numSKU))
+    #orders = np.zeros(shape=(stationCapacity*numStation, numSKU))
+    orders = np.zeros(shape=(40, numSKU))
     # boş order yollayabilir DİKKAT
-    for i in range(stationCapacity * numStation):
+    #for i in range(stationCapacity * numStation):
+    for i in range(40):
         for j in range(numSKU):
             if random.random() > skuExistencethreshold:
                 orders[i, j] = np.random.randint(1, maxAmount + 1)

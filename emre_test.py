@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import simpy
 from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, StorageTask
-import koridor_deneme
+import layout
 import random
 import ast
 

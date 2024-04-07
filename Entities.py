@@ -1,6 +1,6 @@
 import simpy
 import networkx as nx
-import koridor_deneme as layout
+import layout as layout
 
 class Pod(simpy.Resource):
     def __init__(self, env, skuList, location, robot, status):
