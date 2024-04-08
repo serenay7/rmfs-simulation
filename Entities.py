@@ -3,18 +3,26 @@ import networkx as nx
 import layout as layout
 
 class Pod(simpy.Resource):
-    def __init__(self, env, skuList, location, robot, status):
+    def __init__(self, env, location, skuDict=None, robot=None, status=None):
         self.env = env
-        self.skuList = skuList
+        self.skuDict = skuDict
         self.location = location #(0,0), (5,5)
         self.robot = robot
         self.status = status
 
+    """
     def changeSKUAmount(self, sku, amount):
         for row in self.skuList:
             if row[0] == sku:
                 row[1] += amount
                 return amount
+        return 0
+    """
+
+    def changeSKUAmount(self, sku, amount):
+        if self.skuDict.get(sku) is not None:
+            self.skuDict[sku] += amount
+            return amount
         return 0
 
 
@@ -130,7 +138,7 @@ class InputStation(simpy.Resource):
         self.timeToReplenish = timeToReplenish
 
 class OutputStation(simpy.Resource):
-    def __init__(self, env, location, pickItemList, currentPod=None, podQueue=None, timeToPick=1):
+    def __init__(self, env, location, pickItemList=None, currentPod=None, podQueue=None, timeToPick=1):
         self.env = env
         self.location = location
         self.pickItemList = pickItemList

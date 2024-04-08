@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import simpy
-from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, StorageTask
+from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, StorageTask, SKU
 import layout
 import random
 import ast
@@ -13,6 +13,65 @@ class RMFS_Model():
     def __init__(self, env, network):
         self.env = env
         self.network = network
+        self.corridorSubgraph = layout.create_corridor_subgraph(network)
+
+        pod_nodes = [node for node, data in network.nodes(data=True) if data.get('shelf', False)]
+        self.podGraph = network.subgraph(pod_nodes) # Did not write .copy() to reference network itself
+        a = list(self.podGraph.nodes)
+        b = 10
+
+    def createPods(self):
+        rows, cols = self.network.graph['rows'], self.network.graph['cols']
+        r = rows * cols * 8  # Number of storage pods
+        podNodes = list(self.podGraph.nodes)
+
+        self.Pods = []
+        for i in range(r):
+            tempPod = Pod(self.env, podNodes[i])
+            self.Pods.append(tempPod)
+    def createSKUs(self):
+        rows, cols = self.network.graph['rows'], self.network.graph['cols']
+        s = rows * cols * 8 * 5  # Number of SKUs
+        self.SKUs = []
+        for id in range(s):
+            tempSKU = SKU(self.env, id, )
+
+
+    def fillPods(self):
+
+
+        n = 20  # Number of each SKU stored in the warehouse
+        lower_bound = 10  # Lower bound of the amount interval
+        upper_bound = 20  # Upper bound of the amount interval
+
+
+
+    def createOutputStations(self, locations):
+        """
+        Creates output stations and adds to a list which is a feature of RMFS_Model class
+        :param locations: List of tuples
+        """
+        self.OutputStations = []
+        for loc in locations:
+            tempStation = OutputStation(self.env, location=loc)
+            self.OutputStations.append(tempStation)
+
+    def createRobots(self, startLocations):
+        """
+        Creates robots and adds to a list which is a feature of RMFS_Model class
+        :param startLocations: List of tuples
+        """
+        self.Robots = []
+        for idx, loc in enumerate(startLocations):
+            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc)
+            self.Robots.append(tempRobot)
+    def podSelection(self):
+        pass
+
+
+
+
+
 
 
 
@@ -26,17 +85,22 @@ if __name__ == "__main__":
     #rows = 16  #5x5
     #columns = 26
 
-    rows = 10 #3x6
-    columns = 31
+    #rows = 10 #3x6
+    #columns = 31
 
-    #rows = 10 #3x3
-    #columns = 16
+    rows = 10 #3x3
+    columns = 16
 
-    rectangular_network, pos = koridor_deneme.create_rectangular_network_with_attributes(columns, rows)
-    koridor_deneme.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-    koridor_deneme.draw_network_with_shelves(rectangular_network, pos)
+    rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
+    layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
 
-    network_corridors = koridor_deneme.create_corridor_subgraph(rectangular_network)
+    simulation = RMFS_Model(env=env, network=rectangular_network)
+    a = 10
+
+
+    layout.draw_network_with_shelves(rectangular_network, pos)
+
+    network_corridors = layout.create_corridor_subgraph(rectangular_network)
 
     #node = list(rectangular_network.nodes)
     #start_node1 = node[12]
