@@ -71,7 +71,6 @@ class RMFS_Model():
                     amount = random.randint(lower_bound_amount, upper_bound_amount)
                     pod.skuDict[sku.id] = amount
                     sku.totalAmount += amount
-        print(c)
 
 
 
@@ -95,11 +94,73 @@ class RMFS_Model():
         for idx, loc in enumerate(startLocations):
             tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc)
             self.Robots.append(tempRobot)
-    def podSelection(self):
-        pass
 
 
+    def podSelectionHitRateCalculation(self, itemList):
+        """
+        For a given itemList, finds the pod who has maximum hit rate
+        :param itemList:
+        :return: max_hit_pod: pod object, satisfiedSKU: dictionary, rtrItemList: modified itemList
+        """
+        max_hit = 0
+        max_hit_pod = None
+        satisfiedSKU = {} # {item1: amount1, item2: amount2}
+        rtrItemList = itemList.copy()
+        for pod_idx, pod in enumerate(self.Pods):
+            hit = 0
+            satisfiedSKU_temp = {}
+            itemListTemp = itemList.copy()
+            for idx, item in enumerate(itemListTemp): # iterates through items in the itemList (merged orders)
+                if item[0] in pod.skuDict.keys():
+                #if pod.skuDict[item[0]] > 0:
+                    # for each pod check existence of a specific SKU, increases hitRate and decreases amount from temporary itemList
+                    # done for partial fulfillment (same SKU from different pods)
+                    amount = min(itemListTemp[idx][1], pod.skuDict[item[0]])
+                    hit += amount
+                    itemListTemp[idx][1] -= amount
+                    satisfiedSKU_temp[item[0]] = amount
+            if hit > max_hit:
+                max_hit = hit
+                max_hit_pod = pod
+                satisfiedSKU = satisfiedSKU_temp.copy()
+                rtrItemList = itemListTemp
+        max_hit_pod.takeItemList = satisfiedSKU # updates pod's takeItemList so that OutputStation can retrieve items from this list
+        return max_hit_pod, satisfiedSKU, rtrItemList
 
+    #DAHA ÇOK TEST YAZILIP DENENEBİLİR
+    def podSelectionMaxHitRate(self, itemList, satisfiedReturn = False):
+        def itemListSum(array_2d):
+            """
+            Aggregates itemList SKU-wise
+            :param array_2d:
+            :return: sums: 2d np array
+            """
+            # Extract unique values from the first column
+            unique_first_column = np.unique(array_2d[:, 0])
+
+            # Initialize an array to store the sums
+            sums = np.zeros(shape=(len(unique_first_column),2), dtype=int)
+
+            # Iterate over the unique values in the first column
+            for i, value in enumerate(unique_first_column):
+                # Sum the second column where the first column matches the current unique value
+                sums[i,0] = value
+                sums[i,1] = np.sum(array_2d[array_2d[:, 0] == value, 1])
+            return sums
+
+        itemList = itemListSum(itemList)
+        selectedPodsList = []
+        satisfiedList = []
+
+        while len(itemList) > 0:
+            selectedPod, satisfiedSKU, itemList = self.podSelectionHitRateCalculation(itemList=itemList)
+            itemList = [sublist for sublist in itemList if sublist[1] > 0]
+            selectedPodsList.append(selectedPod)
+            satisfiedList.append(satisfiedSKU)
+        if satisfiedReturn:
+            return selectedPodsList, satisfiedList
+
+        return selectedPodsList
 
 
 
@@ -128,6 +189,12 @@ if __name__ == "__main__":
     simulation.createPods()
     simulation.createSKUs()
     simulation.fillPods()
+
+    itemlist = np.array(([1, 10],
+                         [2, 10],
+                         [2, 10]))
+
+    simulation.podSelectionMaxHitRate(itemlist)
 
     a = 10
 

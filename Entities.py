@@ -3,12 +3,13 @@ import networkx as nx
 import layout as layout
 
 class Pod(simpy.Resource):
-    def __init__(self, env, location, skuDict=None, robot=None, status=None):
+    def __init__(self, env, location, skuDict=None, robot=None, status=None, takeItemList=None):
         self.env = env
         self.skuDict = skuDict
         self.location = location #(0,0), (5,5)
         self.robot = robot
         self.status = status
+        self.takeItemList = takeItemList #bu listedeki itemler ve yanlarındaki amount kadar bu poddan alınacak, OStationda bunu yapacak fonksiyon yaz
 
         if skuDict is None:
             self.skuDict = {}
