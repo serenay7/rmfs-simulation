@@ -46,7 +46,7 @@ def min_max_diff(combination, no_of_pods):
     return min_max_diff
 
 
-def check_feasbility(arr):
+def check_feasibility(arr):
     if np.all(arr == np.inf):
         print("No feasible solution.")
     else:
@@ -183,7 +183,7 @@ def mainPodAssignment(pod_nodes, station_nodes, max_percentage):
     #print("Adjusted total distances for each combination")
     #print(combinationTotalDistance)
 
-    result_idx = check_feasbility(combinationTotalDistance)
+    result_idx = check_feasibility(combinationTotalDistance)
     requirement = combination[result_idx]
     testMatrix = columnMultiplication(podAndStation_distance, requirement)
     assigned_pods, assigned_stations, total_distance = assign_pods_to_stations(podAndStation_distance, requirement)

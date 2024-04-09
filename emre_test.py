@@ -5,6 +5,7 @@ from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, Stora
 import layout
 import random
 import ast
+from lp_podselection import podAndStation_combination, calculate_total_distances_for_all_requirements, min_max_diff, check_feasibility, columnMultiplication, assign_pods_to_stations
 
 
 
@@ -162,8 +163,29 @@ class RMFS_Model():
 
         return selectedPodsList
 
+    def podSelectionHungarian(self, selectedPodsList, max_percentage):
+        no_of_pods = len(selectedPodsList)
+        no_of_stations = len(self.OutputStations)
 
+        podAndStation_distance = np.zeros(shape=(no_of_pods, no_of_stations))   # empty matrix
+        combination = podAndStation_combination(no_of_pods, no_of_stations)
 
+        for i, pod in enumerate(selectedPodsList):
+            for j, station in enumerate(self.OutputStations):
+                distance = abs(pod.location[0] - station.location[0]) + abs(pod.location[1] - station.location[1])
+                podAndStation_distance[i, j] = distance
+
+        combinationTotalDistance = calculate_total_distances_for_all_requirements(podAndStation_distance, combination)
+        percentages = min_max_diff(combination, no_of_pods)
+        # Find indexes where percentages exceed max_percentage
+        exceed_indexes = np.where(percentages > max_percentage)[0]
+        # Set the values at these indexes in combinationTotalDistance to infinity
+        combinationTotalDistance[exceed_indexes] = np.inf
+
+        result_idx = check_feasibility(combinationTotalDistance)
+        requirement = combination[result_idx]
+        testMatrix = columnMultiplication(podAndStation_distance, requirement)
+        assigned_pods, assigned_stations, total_distance = assign_pods_to_stations(podAndStation_distance, requirement)
 
 
 if __name__ == "__main__":
