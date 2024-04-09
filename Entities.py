@@ -10,6 +10,11 @@ class Pod(simpy.Resource):
         self.robot = robot
         self.status = status
 
+        if skuDict is None:
+            self.skuDict = {}
+        else:
+            self.skuDict = skuDict
+
     """
     def changeSKUAmount(self, sku, amount):
         for row in self.skuList:

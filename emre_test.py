@@ -17,32 +17,62 @@ class RMFS_Model():
 
         pod_nodes = [node for node, data in network.nodes(data=True) if data.get('shelf', False)]
         self.podGraph = network.subgraph(pod_nodes) # Did not write .copy() to reference network itself
-        a = list(self.podGraph.nodes)
-        b = 10
 
     def createPods(self):
-        rows, cols = self.network.graph['rows'], self.network.graph['cols']
-        r = rows * cols * 8  # Number of storage pods
         podNodes = list(self.podGraph.nodes)
 
         self.Pods = []
-        for i in range(r):
-            tempPod = Pod(self.env, podNodes[i])
+        for i in podNodes:
+            tempPod = Pod(self.env, i)
             self.Pods.append(tempPod)
+
     def createSKUs(self):
-        rows, cols = self.network.graph['rows'], self.network.graph['cols']
-        s = rows * cols * 8 * 5  # Number of SKUs
-        self.SKUs = []
+        s = len(self.podGraph.nodes) * 4  # Number of SKUs
+        self.SKUs = {}
         for id in range(s):
-            tempSKU = SKU(self.env, id, )
+            tempSKU = SKU(self.env, id, 0)
+            self.SKUs[id] = tempSKU
 
 
     def fillPods(self):
 
+        pod_mean = 3 # Mean number of pods in which an SKU is stored
+        pod_std = 1 # Standard deviation of pods in which an SKU is stored
 
-        n = 20  # Number of each SKU stored in the warehouse
-        lower_bound = 10  # Lower bound of the amount interval
-        upper_bound = 20  # Upper bound of the amount interval
+        sku_mean = 7 # Mean number of sku which are stored in a pod
+        sku_std = 3 # Standard deviation of sku which are stored in a pod
+
+        lower_bound_amount = 50  # Lower bound of the amount interval
+        upper_bound_amount = 100  # Upper bound of the amount interval
+
+        for s_id, s in self.SKUs.items():
+            random_float = np.random.normal(pod_mean, pod_std)
+            random_integer = np.round(random_float).astype(int)
+            while random_integer <= 0:
+                random_float = np.random.normal(pod_mean, pod_std)
+                random_integer = np.round(random_float).astype(int)
+            randomPodsList = random.sample(self.Pods, random_integer)
+
+            for pod in randomPodsList:
+                amount = random.randint(lower_bound_amount, upper_bound_amount)
+                pod.skuDict[s_id] = amount
+                s.totalAmount += amount
+
+        #check for empty pods
+        for pod in self.Pods:
+            if pod.skuDict == {}:
+                random_float = np.random.normal(sku_mean, sku_std)
+                random_integer = np.round(random_float).astype(int)
+                while random_integer <= 0:
+                    random_float = np.random.normal(sku_mean, sku_std)
+                    random_integer = np.round(random_float).astype(int)
+                randomSKUList = random.sample(list(self.SKUs.values()), random_integer)
+                for sku in randomSKUList:
+                    amount = random.randint(lower_bound_amount, upper_bound_amount)
+                    pod.skuDict[sku.id] = amount
+                    sku.totalAmount += amount
+        print(c)
+
 
 
 
@@ -95,6 +125,10 @@ if __name__ == "__main__":
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
 
     simulation = RMFS_Model(env=env, network=rectangular_network)
+    simulation.createPods()
+    simulation.createSKUs()
+    simulation.fillPods()
+
     a = 10
 
 
