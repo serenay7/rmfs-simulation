@@ -163,7 +163,7 @@ class RMFS_Model():
 
         return selectedPodsList
 
-    def podSelectionHungarian(self, selectedPodsList, max_percentage):
+    def podSelectionHungarian(self, selectedPodsList, max_percentage=0.5):
         no_of_pods = len(selectedPodsList)
         no_of_stations = len(self.OutputStations)
 
@@ -186,6 +186,48 @@ class RMFS_Model():
         requirement = combination[result_idx]
         testMatrix = columnMultiplication(podAndStation_distance, requirement)
         assigned_pods, assigned_stations, total_distance = assign_pods_to_stations(podAndStation_distance, requirement)
+
+        # PS_distance = her podun her istasyona uzaklığı
+        # PS_combination = all possible combinations
+        # requirement = en iyileyen kombinasyon
+        # testMatrix = hungarian için duplike edilen distance matrix
+        # assigned_pods = direkt olarak saf hungarian çıktısı, istasyon bilgisi yok
+        # assigned_stations = pod istasyon eşleşmeleri, from assigned_pods
+
+        return podAndStation_distance, combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance
+
+    def PhaseIExperiment(self, orderList, max_percentage=0.5, returnSelected=False):
+
+        # Assignment by Hungarian Method Part
+        selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemlist,satisfiedReturn=True)
+        PS_distance, PS_combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance = self.podSelectionHungarian(selectedPodsList, max_percentage)
+        numSelectedPodsP1 = len(selectedPodsList)
+
+        # Rawsimo default assignment
+        def manhattan_distance(tuple1, tuple2):
+            return sum(abs(a - b) for a, b in zip(tuple1, tuple2))
+
+        def sum_manhattan_distance(target_tuple, listPods):
+            return sum(manhattan_distance(target_tuple, t.location) for t in listPods)
+
+        orderListDivided = np.reshape(orderList, newshape=(len(self.OutputStations), orderList.shape[0] // len(self.OutputStations), orderList.shape[1]))
+        numSelectedPodsRawsimo = 0
+        totalDistRawsimo = 0
+        selectedPodsListRawsimo = []
+        for stationIdx, station in enumerate(self.OutputStations):
+            stationLocation = station.location
+            itemListDivided = np.sum(orderListDivided[stationIdx], axis=0)
+            itemListDivided = [[sku, int(amount)] for sku, amount in enumerate(itemListDivided)]
+            tempList = self.podSelectionMaxHitRate(itemListDivided)
+
+            selectedPodsListRawsimo.extend(tempList)
+            numSelectedPodsRawsimo += len(selectedPodsListRawsimo)
+            totalDistRawsimo += sum_manhattan_distance(stationLocation, selectedPodsListRawsimo)
+
+        if returnSelected:
+            return selectedPodsList, numSelectedPodsP1, int(total_distance), selectedPodsListRawsimo, numSelectedPodsRawsimo, totalDistRawsimo
+
+        return numSelectedPodsP1, int(total_distance), numSelectedPodsRawsimo, totalDistRawsimo
 
 
 if __name__ == "__main__":
