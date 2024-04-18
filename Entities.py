@@ -34,7 +34,7 @@ class Pod(simpy.Resource):
 
 class Robot():
     def __init__(self, env, network_corridors, network, robotID, pod, currentNode,
-                 targetNode=None, currentTask=None, taskList=None, loadedSpeed=1, emptySpeed=2, takeTime=3, dropTime=3):
+                 targetNode=None, currentTask=None, taskList=None, loadedSpeed=1, emptySpeed=2, takeTime=3, dropTime=3, batteryLevel = 41.6, moveLoaded = 14.53265, moveEmpty = 11.9566, chargingRate = 41.6, chargeThreshold=35, chargingStationLocation=(0, 0)):
         self.env = env
         self.network = network
         self.network_corridors = network_corridors
@@ -49,6 +49,13 @@ class Robot():
         self.takeTime = takeTime
         self.dropTime = dropTime
         self.stepsTaken = 0  # Initialize the steps counter, for total distance calculation
+        self.batteryLevel = batteryLevel
+        self.chargeCycle = 0
+        self.moveLoaded = moveLoaded
+        self.moveEmpty = moveEmpty
+        self.chargingRate = chargingRate
+        self.chargeThreshold = chargeThreshold
+        self.chargingStationLocation = chargingStationLocation
        # self.podsCarriedCount = 0 # Counts how many pods a robot carry.
 
     def completeTask(self):
@@ -69,15 +76,18 @@ class Robot():
         if self.pod != None: self.pod.location = node
 
     def move(self):
-        #loaded olduğu zaman pod olmayan yerlerden gidecek
+
         for next_position in self.path[1:]:
             self.stepsTaken += 1  # Increment the steps counter each time the robot moves
 
-            if self.pod != None:
+            if self.pod != None: # robot loaded
+                self.batteryLevel -= self.moveLoaded/(3600*self.loadedSpeed)
                 event = self.env.timeout(self.loadedSpeed)
                 event.callbacks.append(lambda event, pos=next_position: self.changeCurrentNode(pos))
                 yield event
-            else:
+
+            else: # robot empty
+                self.batteryLevel -= self.moveEmpty/(3600*self.emptySpeed)
                 event = self.env.timeout(self.emptySpeed)
                 #event.callbacks.append(self.changeCurrentNode(next_position))
                 event.callbacks.append(lambda event, pos=next_position: self.changeCurrentNode(pos))
@@ -100,6 +110,9 @@ class Robot():
         yield self.env.timeout(self.dropTime)
 
     def DoExtractTask(self, extractTask):
+        if self.batteryLevel < 10:
+            yield self.env.process(self.moveToChargingStationAndCharge())
+
         self.createPath(extractTask.pod.location)
         yield self.env.process(self.move())
         yield self.env.process(self.takePod(extractTask.pod))
@@ -115,7 +128,6 @@ class Robot():
         yield self.env.process(self.move())
         yield self.env.process(self.dropPod(self.pod))
 
-
     # def assignPod(self, pod):
     #    if self.pod != pod:  # Check if a new pod is being assigned
     #        self.pod = pod
@@ -126,6 +138,24 @@ class Robot():
 
     # def getPodsCarriedCount(self): # TO COUNT HOW MANY PODS A ROBOT CARRY
     #    return self.podsCarriedCount
+
+    def chargeBattery(self):
+        self.chargeCycle += 1
+        gap = self.chargeThreshold - self.batteryLevel
+        
+        if self.batteryLevel < self.chargeThreshold:
+            self.batteryLevel += gap
+
+        chargeTime = 3600*(gap/self.chargingRate)
+        yield self.env.timeout(chargeTime)
+
+    def moveToChargingStationAndCharge(self):
+        # Move to the charging station location
+        self.createPath(self.chargingStationLocation)
+        yield self.env.process(self.move())
+        # Charge the battery
+        yield self.env.process(self.chargeBattery())
+
 
 
 
@@ -179,8 +209,6 @@ class ExtractTask():
     #     self.robot.move()
     #     self.outputstation.currentPod = self.pod
     #     self.outputstation.PickItems()
-
-
 
 class StorageTask(Task):
     def __init__(self, env, robot, pod, storageLocation):
