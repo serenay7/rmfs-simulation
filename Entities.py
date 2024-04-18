@@ -168,7 +168,7 @@ class Task():
 
 
 class ExtractTask():
-    def __init__(self, env, robot, outputstation, pod):
+    def __init__(self, env, robot=None, outputstation=None, pod=None):
         self.env = env
         self.robot = robot
         self.outputstation = outputstation

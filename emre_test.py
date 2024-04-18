@@ -6,7 +6,7 @@ import layout
 import random
 import ast
 from lp_podselection import podAndStation_combination, calculate_total_distances_for_all_requirements, min_max_diff, check_feasibility, columnMultiplication, assign_pods_to_stations
-
+#from vrp import create_data_model
 
 
 
@@ -100,7 +100,7 @@ class RMFS_Model():
     def podSelectionHitRateCalculation(self, itemList):
         """
         For a given itemList, finds the pod who has maximum hit rate
-        :param itemList:
+        :param itemList: 2d np array
         :return: max_hit_pod: pod object, satisfiedSKU: dictionary, rtrItemList: modified itemList
         """
         max_hit = 0
@@ -155,7 +155,7 @@ class RMFS_Model():
 
         while len(itemList) > 0:
             selectedPod, satisfiedSKU, itemList = self.podSelectionHitRateCalculation(itemList=itemList)
-            itemList = [sublist for sublist in itemList if sublist[1] > 0]
+            itemList = np.array([sublist for sublist in itemList if sublist[1] > 0])
             selectedPodsList.append(selectedPod)
             satisfiedList.append(satisfiedSKU)
         if satisfiedReturn:
@@ -163,7 +163,7 @@ class RMFS_Model():
 
         return selectedPodsList
 
-    def podSelectionHungarian(self, selectedPodsList, max_percentage=0.5):
+    def podSelectionHungarian(self, selectedPodsList, max_percentage=0.5, outputTask=False):
         no_of_pods = len(selectedPodsList)
         no_of_stations = len(self.OutputStations)
 
@@ -194,7 +194,15 @@ class RMFS_Model():
         # assigned_pods = direkt olarak saf hungarian çıktısı, istasyon bilgisi yok
         # assigned_stations = pod istasyon eşleşmeleri, from assigned_pods
 
+        if outputTask:
+            taskList = []
+            for pod_idx, station_idx in enumerate(assigned_stations):
+                tempTask = ExtractTask(env=self.env, robot=None, outputstation=self.OutputStations[station_idx], pod=selectedPodsList[pod_idx])
+                taskList.append(tempTask)
+            return taskList
         return podAndStation_distance, combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance
+
+
 
     def PhaseIExperiment(self, orderList, max_percentage=0.5, returnSelected=False):
 
@@ -230,6 +238,29 @@ class RMFS_Model():
         return numSelectedPodsP1, int(total_distance), numSelectedPodsRawsimo, totalDistRawsimo
 
 
+
+
+
+    def fixedLocationVRP(self):
+        def distanceMatrixCreate(taskList, start_nodes=None, end_nodes=None):
+            pass
+
+
+        def create_data_model(distanceMatrix, start_index, end_index):
+            """Stores the data for the problem."""
+            data = {}
+            data["distance_matrix"] = distanceMatrix
+            data["num_vehicles"] = len(self.Robots)
+            data["starts"] = start_index
+            data["ends"] = end_index
+            return data
+
+
+
+        data = create_data_model()
+
+
+
 if __name__ == "__main__":
     env = simpy.Environment()
 
@@ -249,16 +280,29 @@ if __name__ == "__main__":
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
 
+    nodes = list(rectangular_network.nodes)
     simulation = RMFS_Model(env=env, network=rectangular_network)
     simulation.createPods()
     simulation.createSKUs()
+
+
+    firstStation = (nodes[0][0], (nodes[0][1] + nodes[-1][1]) // 2)
+    secondStation = (nodes[-1][0], (nodes[0][1] + nodes[-1][1]) // 2)
+    locations = [firstStation, secondStation]
+
+    simulation.createOutputStations(locations)
     simulation.fillPods()
 
     itemlist = np.array(([1, 10],
                          [2, 10],
-                         [2, 10]))
+                         [3, 10],
+                         [4, 10],
+                         [5, 10],
+                         [6, 10],
+                         [7, 10],))
 
-    simulation.podSelectionMaxHitRate(itemlist)
+    selectedPodsList = simulation.podSelectionMaxHitRate(itemlist)
+    simulation.podSelectionHungarian(selectedPodsList)
 
     a = 10
 
