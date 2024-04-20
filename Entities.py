@@ -33,7 +33,7 @@ class Pod(simpy.Resource):
 
 
 class Robot():
-    def __init__(self, env, network_corridors, network, robotID, pod, currentNode,
+    def __init__(self, env, network_corridors, network, robotID, pod=None, currentNode=None,
                  targetNode=None, currentTask=None, taskList=None, loadedSpeed=1, emptySpeed=2, takeTime=3, dropTime=3, batteryLevel = 41.6, moveLoaded = 14.53265, moveEmpty = 11.9566, chargingRate = 41.6, chargeThreshold=35, chargingStationLocation=(0, 0)):
         self.env = env
         self.network = network
