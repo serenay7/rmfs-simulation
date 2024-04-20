@@ -17,7 +17,7 @@ def create_network(vertical, horizontal):
 def taskGenerator(network, numTask, numRobot):
     """Generates 2d np array for tasks. First column location of the pod (tuple), second column assigned robot (int)"""
     nodesDict = network._node  # kendi node değişkeninden farklı, pod olup olmadığının bilgisini de dict olarak veriyor
-    shelvesNetworkNodes = {k: v for k, v in nodesDict.items() if v == {'shelf': True}}
+    shelvesNetworkNodes = {k: v for k, v in nodesDict.items() if v.get('shelf', False)}
     randomPodsList = random.sample(list(shelvesNetworkNodes.keys()), numTask)
     tasks = []
     for idx, task in enumerate(randomPodsList):

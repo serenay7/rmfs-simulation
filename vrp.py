@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import networkx as nx
 import layout
@@ -211,14 +213,17 @@ def solve_vrp(numVehicles, rectangular_network, stacked_arr):
     end_node = nodes[-1]
 
     distMatrix_stacked, nodes_stacked = taskDistanceMatrix(stacked_arr, nodes, distMatrix, start_node, end_node)
-    start_index = get_node_index(nodes_stacked, start_node)
-    end_index = get_node_index(nodes_stacked, end_node)
+    #start_index = get_node_index(nodes_stacked, start_node)
+    #end_index = get_node_index(nodes_stacked, end_node)
     #Stacked array 2 columnlı verilebilir, columnlardan biri drop edilip kalan column 1-d array yapılacak
-    start_idx = [start_index for idx in range(numVehicles)]
-    #if numVehicles == 4: start_idx = [0,0,20,20]
-    end_idx = [end_index for idx in range(numVehicles)]
-    #if numVehicles == 4: end_idx = [0, 0, 20, 20]
+    #start_idx = [start_index for idx in range(numVehicles)]
+    if numVehicles == 4: start_idx = [0,0,20,20]
+    #end_idx = [end_index for idx in range(numVehicles)]
+    if numVehicles == 4: end_idx = [0, 0, 20, 20]
+    start = time.time()
     data, manager, routing, solution, dflist = main(distMatrix_stacked, numVehicles, start_idx, end_idx)
+    end = time.time()
+    print(end-start)
     df = list_to_df(numVehicles, dflist)
 
     return df
@@ -304,8 +309,10 @@ if __name__ == "__main__":
     # Write the DataFrame to an Excel file
     # df.to_excel('output.xlsx', index=False)
     """
-    networkList = ["4x8", "4x8", "5x5", "5x5", "6x12", "6x12", "8x8", "8x8", "10x20", "10x20"]
-    numRobotList = [2, 4, 2, 4, 2, 4, 2, 4, 2, 4]
+    #networkList = ["4x8", "4x8", "5x5", "5x5", "6x12", "6x12", "8x8", "8x8", "10x20", "10x20"]
+    #numRobotList = [2, 4, 2, 4, 2, 4, 2, 4, 2, 4]
+    networkList = ["4x8", "5x5", "6x12", "8x8", "10x20"]
+    numRobotList = [4, 4, 4, 4, 4]
     taskList = []
     for idx, network in enumerate(networkList):
         dimensions = network.split("x")
@@ -313,6 +320,7 @@ if __name__ == "__main__":
         column = int(dimensions[1])
         network, network_corridors = generators.create_network(vertical=row, horizontal=column)
         #task = generators.taskGenerator(network, 20, numRobotList[idx])
+        layout.place_shelves_automatically(network, shelf_dimensions=(4, 2), spacing=(1, 1))
         task = generators.taskGenerator(network, numRobotList[idx]*10, numRobotList[idx])
         taskList.append(task)
 

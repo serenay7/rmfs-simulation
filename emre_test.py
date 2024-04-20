@@ -6,7 +6,9 @@ import layout
 import random
 import ast
 from lp_podselection import podAndStation_combination, calculate_total_distances_for_all_requirements, min_max_diff, check_feasibility, columnMultiplication, assign_pods_to_stations
-#from vrp import create_data_model
+from ortools.constraint_solver import routing_enums_pb2
+from ortools.constraint_solver import pywrapcp
+import networkx as nx
 
 
 
@@ -240,11 +242,70 @@ class RMFS_Model():
 
 
 
+    def distanceMatrixCalculate(self):
+        """Takes a network as input, returns a Distance Matrix and the list of nodes."""
 
-    def fixedLocationVRP(self):
-        def distanceMatrixCreate(taskList, start_nodes=None, end_nodes=None):
-            pass
+        shortest_paths = dict(nx.all_pairs_shortest_path_length(self.network))
 
+        nodes = list(self.network.nodes)
+        num_nodes = len(nodes)
+        distance_matrix = np.zeros((num_nodes, num_nodes))
+
+        for i in range(num_nodes):
+            for j in range(num_nodes):
+                if i != j:
+                    if nodes[j] in shortest_paths[nodes[i]]:
+                        distance_matrix[i][j] = shortest_paths[nodes[i]][nodes[j]]
+                    else:
+                        distance_matrix[i][j] = float('inf')
+
+        self.distanceMatrix = distance_matrix
+        return distance_matrix, nodes
+
+    def fixedLocationVRP(self, taskList, start_nodes=None, end_nodes=None):
+        def distanceMatrixModify(taskList, start_nodes=None, end_nodes=None):
+            """
+            Using self.distanceMatrix, returns a distance matrix only contains necessary nodes for OR-Tools VRP
+            :param taskList: List that contains ExtractTask objects
+            :param start_nodes: List of tuples
+            :param end_nodes: List of tuples
+            :return: 2d np array
+            """
+            node_idx = []
+            start_idx = []
+            end_idx = []
+            for task in taskList: #adding index of pods to index list
+                idx = list(self.network.nodes).index(task.pod.location) # To speed up, search only in podNodes
+                node_idx.append(idx)
+
+            if start_nodes == None:
+                for i, robot in enumerate(self.Robots):
+                    node_idx.append(robot.currentNode)
+                    start_idx.append(len(node_idx)+i)
+            else:
+                for i, node in enumerate(start_nodes):
+                    idx = list(self.network.nodes).index(node)
+                    node_idx.append(idx)
+                    start_idx.append(len(node_idx)+i)
+
+            if end_nodes != None:
+                for i, node in enumerate(end_nodes):
+                    idx = list(self.network.nodes).index(node)
+                    node_idx.append(idx)
+                    end_idx.append(len(node_idx) + i)
+                vrp_matrix = self.distanceMatrix[node_idx, :][:, node_idx]
+                return vrp_matrix, start_idx, end_idx
+            else:
+                #adding dummy node
+                vrp_matrix = self.distanceMatrix[node_idx, :][:, node_idx]
+                zero_column = np.zeros((vrp_matrix.shape[0], 1), dtype=vrp_matrix.dtype)
+                vrp_matrix = np.insert(vrp_matrix, vrp_matrix.shape[1], zero_column, axis=1)
+                infinity_row = np.full((1, vrp_matrix.shape[1]), np.inf)
+                vrp_matrix = np.insert(vrp_matrix, vrp_matrix.shape[0],infinity_row, axis=0)
+                vrp_matrix[-1, -1] = 0
+
+                end_idx = [len(node_idx) for i in range(len(self.Robots))]
+                return vrp_matrix, start_idx, end_idx
 
         def create_data_model(distanceMatrix, start_index, end_index):
             """Stores the data for the problem."""
@@ -256,8 +317,8 @@ class RMFS_Model():
             return data
 
 
-
-        data = create_data_model()
+        distMatrixModified, start_index, end_index = distanceMatrixModify(taskList,start_nodes,end_nodes)
+        data = create_data_model(distMatrixModified, start_index, end_index)
 
 
 
@@ -302,7 +363,7 @@ if __name__ == "__main__":
                          [7, 10],))
 
     selectedPodsList = simulation.podSelectionMaxHitRate(itemlist)
-    simulation.podSelectionHungarian(selectedPodsList)
+    simulation.podSelectionHungarian(selectedPodsList, outputTask=True)
 
     a = 10
 

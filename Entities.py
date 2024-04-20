@@ -82,13 +82,13 @@ class Robot():
 
             if self.pod != None: # robot loaded
                 self.batteryLevel -= self.moveLoaded/(3600*self.loadedSpeed)
-                event = self.env.timeout(self.loadedSpeed)
+                event = self.env.timeout(1/self.loadedSpeed)
                 event.callbacks.append(lambda event, pos=next_position: self.changeCurrentNode(pos))
                 yield event
 
             else: # robot empty
                 self.batteryLevel -= self.moveEmpty/(3600*self.emptySpeed)
-                event = self.env.timeout(self.emptySpeed)
+                event = self.env.timeout(1/self.emptySpeed)
                 #event.callbacks.append(self.changeCurrentNode(next_position))
                 event.callbacks.append(lambda event, pos=next_position: self.changeCurrentNode(pos))
                 yield event
@@ -116,7 +116,10 @@ class Robot():
         self.createPath(extractTask.pod.location)
         yield self.env.process(self.move())
         yield self.env.process(self.takePod(extractTask.pod))
-        self.createPath(extractTask.outputstation.location)
+
+        tempGraph = layout.create_node_added_subgraph(self.pod.location, self.network_corridors, self.network)
+        self.createPath(self.pod.location, tempGraph=tempGraph)
+        del tempGraph
         yield self.env.process(self.move())
         #extractTask.outputstation.currentPod = self.pod
         #extractTask.outputstation.PickedItems()

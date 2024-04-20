@@ -15,13 +15,13 @@ if __name__ == "__main__":
     columns = 16
 
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
-    #layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+    layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
 
     nodes = list(rectangular_network.nodes)
 
     network_corridors = layout.create_corridor_subgraph(rectangular_network)
 
-    #layout.draw_network_with_shelves(rectangular_network, pos)
+    layout.draw_network_with_shelves(rectangular_network, pos)
 
     station1 = OutputStation(env, (15,1), pickItemList=None)
 
