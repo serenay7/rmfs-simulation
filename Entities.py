@@ -109,7 +109,14 @@ class Robot():
         self.pod = None
         yield self.env.timeout(self.dropTime)
 
+        if self.taskList:
+            yield self.env.process(self.DoExtractTask(self.taskList[0]))
+
     def DoExtractTask(self, extractTask):
+        PodFixedLocation = extractTask.pod.location
+        self.currentTask = extractTask
+        self.taskList.pop(0)
+
         if self.batteryLevel < 10:
             yield self.env.process(self.moveToChargingStationAndCharge())
 
@@ -118,18 +125,35 @@ class Robot():
         yield self.env.process(self.takePod(extractTask.pod))
 
         tempGraph = layout.create_node_added_subgraph(self.pod.location, self.network_corridors, self.network)
-        self.createPath(self.pod.location, tempGraph=tempGraph)
+        self.createPath(extractTask.outputstation.location, tempGraph=tempGraph)
         del tempGraph
         yield self.env.process(self.move())
         #extractTask.outputstation.currentPod = self.pod
         #extractTask.outputstation.PickedItems()
 
+        tempGraph = layout.create_node_added_subgraph(PodFixedLocation, self.network_corridors, self.network)
+        self.createPath(PodFixedLocation, tempGraph=tempGraph)
+        del tempGraph
+        yield self.env.process(self.move())
+        yield self.env.process(self.dropPod(self.pod))
+
+
     def DoStorageTask(self, storageTask):
+        #kullanılmıyor
         tempGraph = layout.create_node_added_subgraph(storageTask.storageLocation, self.network_corridors, self.network)
         self.createPath(storageTask.storageLocation, tempGraph=tempGraph)
         del tempGraph
         yield self.env.process(self.move())
         yield self.env.process(self.dropPod(self.pod))
+
+    def ExecuteTaskList(self):
+        for task in self.taskList:
+            # buraya if yaz task'ın tipine baksın
+            self.DoExtractTask(task)
+            self.DoStorageTask()
+
+
+
 
     # def assignPod(self, pod):
     #    if self.pod != pod:  # Check if a new pod is being assigned
@@ -219,3 +243,19 @@ class StorageTask(Task):
         self.robot = robot
         self.pod = pod
         self.storageLocation = storageLocation
+
+
+if __name__ == "__main__":
+    env = simpy.Environment()
+    rows = 10  # 3x3
+    columns = 16
+
+    rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
+    layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+
+    robot1 = Robot(env, layout.create_corridor_subgraph(rectangular_network), rectangular_network,0)
+    pod1 = Pod(env, (1,1))
+    station1 = OutputStation(env,(0,9))
+    sampleTask = ExtractTask(env,robot1,station1,pod1)
+    env.process(robot1.DoExtractTask(sampleTask))
+    env.run()

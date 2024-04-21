@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import simpy
+
+import generators
 from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, StorageTask, SKU
 import layout
 import random
@@ -96,7 +98,7 @@ class RMFS_Model():
         """
         self.Robots = []
         for idx, loc in enumerate(startLocations):
-            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc)
+            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[])
             self.Robots.append(tempRobot)
 
 
@@ -263,7 +265,7 @@ class RMFS_Model():
         self.distanceMatrix = distance_matrix
         return distance_matrix, nodes
 
-    def fixedLocationVRP(self, taskList, start_nodes=None, end_nodes=None):
+    def fixedLocationVRP(self, taskList, start_nodes=None, end_nodes=None, assign=True):
         def distanceMatrixModify(taskList, start_nodes=None, end_nodes=None):
             """
             Using self.distanceMatrix, returns a distance matrix only contains necessary nodes for OR-Tools VRP
@@ -275,8 +277,10 @@ class RMFS_Model():
             node_idx = []
             start_idx = []
             end_idx = []
-            for task in taskList: #adding index of pods to index list
+            task_dict = {} #pod-column index matching for later parts
+            for i, task in enumerate(taskList): #adding index of pods to index list
                 idx = list(self.network.nodes).index(task.pod.location) # To speed up, search only in podNodes
+                task_dict[i] = task
                 node_idx.append(idx)
 
             # ŞARJA GÖRE GÜNCELLE HER ROBOTU DÖNMEMESİ LAZIM
@@ -284,18 +288,18 @@ class RMFS_Model():
                 for i, robot in enumerate(self.Robots):
                     idx = list(self.network.nodes).index(robot.currentNode)
                     node_idx.append(idx)
-                    start_idx.append(len(node_idx)+i)
+                    start_idx.append(len(node_idx)-1)
             else:
                 for i, node in enumerate(start_nodes):
                     idx = list(self.network.nodes).index(node)
                     node_idx.append(idx)
-                    start_idx.append(len(node_idx)+i)
+                    start_idx.append(len(node_idx)-1)
 
             if end_nodes != None:
                 for i, node in enumerate(end_nodes):
                     idx = list(self.network.nodes).index(node)
                     node_idx.append(idx)
-                    end_idx.append(len(node_idx) + i)
+                    end_idx.append(len(node_idx)-1)
                 vrp_matrix = self.distanceMatrix[node_idx, :][:, node_idx]
                 return vrp_matrix, start_idx, end_idx
             else:
@@ -304,12 +308,12 @@ class RMFS_Model():
                 zero_column = np.zeros((vrp_matrix.shape[0], 1), dtype=vrp_matrix.dtype)
                 #vrp_matrix = np.insert(vrp_matrix, vrp_matrix.shape[1], zero_column, axis=1)
                 vrp_matrix = np.append(vrp_matrix, zero_column, axis=1)
-                infinity_row = np.full((1, vrp_matrix.shape[1]), np.inf)
+                infinity_row = np.full((1, vrp_matrix.shape[1]), 10000)
                 vrp_matrix = np.insert(vrp_matrix, vrp_matrix.shape[0],infinity_row, axis=0)
                 vrp_matrix[-1, -1] = 0
 
                 end_idx = [len(node_idx) for i in range(len(self.Robots))] #ŞARJA GÖRE GÜNCELLE
-                return vrp_matrix, start_idx, end_idx
+                return vrp_matrix.astype(int), start_idx, end_idx, task_dict
 
         def create_data_model(distanceMatrix, start_index, end_index):
             """Stores the data for the problem."""
@@ -320,8 +324,35 @@ class RMFS_Model():
             data["ends"] = end_index
             return data
 
+        def createRoutes(data, manager, routing):
+            allRoutes = []
+            for vehicle_id in range(data["num_vehicles"]):
 
-        distMatrixModified, start_index, end_index = distanceMatrixModify(taskList,start_nodes,end_nodes)
+                index = routing.Start(vehicle_id)
+                route_array = np.array([])
+
+                while not routing.IsEnd(index):
+                    plan = manager.IndexToNode(index)
+                    index = solution.Value(routing.NextVar(index))
+                    route_array = np.append(route_array, plan)
+
+                last = manager.IndexToNode(index)
+                route_array = np.append(route_array, last)
+                allRoutes.append(route_array.astype(int))
+            return allRoutes
+
+        def assignTasks(routeList, task_dict):
+
+            for idx, robot in enumerate(self.Robots):
+                #if charge mı değil mi bak, veya rotalamada bu robot görev istedi mi direkt sıraya göre atama yapıyor
+                #sadece extract create ediyor
+                for node in routeList[idx][1:-1]:
+                    tempTask = task_dict[node]
+                    tempTask.robot = robot
+                    robot.taskList.append(tempTask)
+
+
+        distMatrixModified, start_index, end_index, task_dict = distanceMatrixModify(taskList,start_nodes,end_nodes)
         data = create_data_model(distMatrixModified, start_index, end_index)
 
         # Create the routing index manager.
@@ -366,9 +397,40 @@ class RMFS_Model():
 
         # Print solution on console.
         if solution:
-
+            allRoutes = createRoutes(data=data, manager=manager, routing=routing)
+            if assign:assignTasks(allRoutes, task_dict)
             dflist = vrp.print_solution(data, manager, routing, solution)
             return data, manager, routing, solution, dflist
+
+    def startCycle(self):
+        #generatordan itemList createle
+        newItemlist = np.array(([1, 10],
+                         [2, 10],
+                         [3, 10],
+                         [4, 10],
+                         [5, 10],
+                         [6, 10],
+                         [7, 10],))
+
+        selectedPodsList = simulation.podSelectionMaxHitRate(itemlist)
+        extractTaskList = simulation.podSelectionHungarian(selectedPodsList, outputTask=True)
+        simulation.fixedLocationVRP(extractTaskList, assign=True)
+
+        for robot in simulation.Robots:
+            simulation.env.process(robot.DoExtractTask(robot.taskList[0]))
+        env.run()
+
+    def taskGeneratorV2(self, numTask):
+        pass
+
+    def fixedLocationRawSIMO(self, taskList, start_nodes=None, end_nodes=None, assign=True):
+
+        for task in taskList:
+            for pod in self.Pods:
+                if pod.location == task[0]:
+                    tempTask = ExtractTask(env=env,)
+    def PhaseIIExperimentOneCycle(self, numTask):
+        taskListRaw = generators.taskGenerator(network=simulation.network, numTask=numTask, numRobot=len(self.Robots))
 
 
 
@@ -396,7 +458,7 @@ if __name__ == "__main__":
     simulation.createPods()
     simulation.createSKUs()
 
-    startLocations = [(0,0), (0,1), (1,0)]
+    startLocations = [(0,0), (0,9)]
     simulation.createRobots(startLocations)
 
     firstStation = (nodes[0][0], (nodes[0][1] + nodes[-1][1]) // 2)
@@ -417,8 +479,15 @@ if __name__ == "__main__":
 
     selectedPodsList = simulation.podSelectionMaxHitRate(itemlist)
     extractTaskList = simulation.podSelectionHungarian(selectedPodsList, outputTask=True)
-    simulation.fixedLocationVRP(extractTaskList)
+    simulation.fixedLocationVRP(extractTaskList, assign=True)
 
+    for robot in simulation.Robots:
+        simulation.env.process(robot.DoExtractTask(robot.taskList[0]))
+        #simulation.env.process(robot.DoStorageTask())
+
+    #simulation.env.run(until=10)
+    #simulation.env.run(until=15)
+    simulation.env.run()
     a = 10
 
 
@@ -504,48 +573,3 @@ if __name__ == "__main__":
 # output_station = OutputStation(env, location, pickItemList)
 # After some simulation steps where PickItems might be called
 # print(f"PickItems was called {output_station.getPickItemsCount()} times.")
-
-'''import numpy as np
-import random
-
-def generate_distribution_matrix(s, r, k, lower_bound, upper_bound):
-    # Ensure k does not exceed the number of pods
-    k = min(k, r)
-    
-    # Initialize the distribution matrix with zeros
-    matrix = np.zeros((s, r), dtype=int)
-    
-    # Ensure every pod gets at least one SKU, if possible
-    for sku in range(s):
-        # Randomly select k unique pods for this SKU
-        pods = random.sample(range(r), k)
-        for pod in pods:
-            # Assign a random amount within the bounds to this SKU in these pods
-            matrix[sku, pod] = random.randint(lower_bound, upper_bound)
-    
-    # Check if there are any empty pods and try to redistribute if any
-    for pod in range(r):
-        if not matrix[:, pod].any():
-            # Find a SKU and pod to redistribute
-            for sku in range(s):
-                if sum(matrix[sku, :]) > 1:  # SKU must be in more than one pod to redistribute
-                    redistribute_pod = random.choice([p for p in range(r) if matrix[sku, p] > 0])
-                    # Move a portion of the SKU from one pod to the empty pod
-                    amount_to_move = matrix[sku, redistribute_pod] // 2
-                    matrix[sku, redistribute_pod] -= amount_to_move
-                    matrix[sku, pod] += amount_to_move
-                    break
-    
-    return matrix.tolist()
-
-# Example usage
-s = 5  # SKUs
-r = 3  # Pods
-k = 2  # Max pods per SKU
-lower_bound = 1
-upper_bound = 100
-
-# Generate and print the distribution matrix
-distribution_matrix = generate_distribution_matrix(s, r, k, lower_bound, upper_bound)
-distribution_matrix
-'''
