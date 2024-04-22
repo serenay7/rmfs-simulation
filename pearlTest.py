@@ -1,48 +1,45 @@
-
-class MODEL():
-    def __init__(self, env, robotList=None):
-        self.env = env
-        self.robotList = robotList
-
-    def modelTest(self):
-        for robot in robotlist:
-            print(robot.status)
-
-class Robot():
-    def __init__(self, env, model=None, status=0):
-        self.env = env
-        self.model = model
-        self.status = status
-
-    def extract(self):
-        self.status = 1
-        self.model.modelTest()
-
-env = 1
-robot1 = Robot(env)
-robot2 = Robot(env)
-
-robotlist = [robot1, robot2]
-mod = MODEL(env, robotlist)
-robot1.model = mod
-robot2.model = mod
-
-robot1.extract()
-
-
 import numpy as np
+import pandas as pd
+import simpy
+from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, StorageTask, SKU, ChargingStation
+import layout
+import random
+import ast
+from lp_podselection import podAndStation_combination, calculate_total_distances_for_all_requirements, min_max_diff, \
+    check_feasibility, columnMultiplication, assign_pods_to_stations
 
-# Create a sample 2D NumPy array
-array_2d = np.array([[1, 2, 3],
-                     [4, 5, 6],
-                     [7, 8, 9]])
+# from vrp import create_data_model
 
-# List of column indices to be retrieved
-column_indices = [2, 0]
+if __name__ == "__main__":
+    env = simpy.Environment()
 
-# Retrieve the columns
-columns = array_2d[:, column_indices]
+    rows = 10  # 3x3
+    columns = 16
 
-# Print the list of columns
-print("List of Columns:")
-print(columns)
+    rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
+    layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+
+    nodes = list(rectangular_network.nodes)
+
+    network_corridors = layout.create_corridor_subgraph(rectangular_network)
+
+    layout.draw_network_with_shelves(rectangular_network, pos)
+
+    station1 = OutputStation(env, (15, 1), pickItemList=None)
+
+    pod1 = Pod(env, (1, 1))
+
+    chargingStation = ChargingStation(env=env, capacity=1, location=(0,9))
+
+    robot1 = Robot(env, network_corridors, rectangular_network, 1, pod=None, currentNode=(0, 0),
+                   targetNode=None, currentTask=None, taskList=None, loadedSpeed=1, emptySpeed=2, takeTime=3,
+                   dropTime=3, batteryLevel=9, moveLoaded=14.53265, moveEmpty=11.9566, chargingRate=41.6,
+                   chargeThreshold=35)
+
+    sampleTask = ExtractTask(env, robot=robot1, outputstation=station1, pod=pod1)
+
+    # robot1.DoExtractTask(sampleTask)
+    env.process(robot1.DoExtractTask(sampleTask))
+    env.run()
+
+a = 10

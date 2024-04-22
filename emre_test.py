@@ -266,6 +266,14 @@ class RMFS_Model():
         return distance_matrix, nodes
 
     def fixedLocationVRP(self, taskList, start_nodes=None, end_nodes=None, assign=True):
+        """
+
+        :param taskList: List that contains ExtractTask objects
+        :param start_nodes: List of tuples
+        :param end_nodes: List of tuples
+        :param assign: Boolean variable, if True adds tasks to robots' task lists,
+        :return: data, manager, routing, solution, dflist
+        """
         def distanceMatrixModify(taskList, start_nodes=None, end_nodes=None):
             """
             Using self.distanceMatrix, returns a distance matrix only contains necessary nodes for OR-Tools VRP
@@ -402,7 +410,7 @@ class RMFS_Model():
             dflist = vrp.print_solution(data, manager, routing, solution)
             return data, manager, routing, solution, dflist
 
-    def startCycle(self):
+    def startCycleVRP(self):
         #generatordan itemList createle
         newItemlist = np.array(([1, 10],
                          [2, 10],
@@ -420,15 +428,42 @@ class RMFS_Model():
             simulation.env.process(robot.DoExtractTask(robot.taskList[0]))
         env.run()
 
-    def taskGeneratorV2(self, numTask):
-        pass
+    def taskGeneratorV2(self, numTask, forVRP=True, forRawSIMO=True):
+        """
+        Creates a list contains extract task object from random selected pods
+        :param numTask: int, number of tasks
+        :param forVRP: if True creates tasks without assigning robots
+        :param forRawSIMO: if True creates tasks with assigning robots
+        :return:
+        """
+        randomPodsList = random.sample(self.Pods, numTask)
+        vrpTaskList = []
+        rawsimoTaskList = []
+        for idx, pod in enumerate(randomPodsList):
+            if forVRP:
+                vrpTask = ExtractTask(env=self.env, robot=None, outputstation=None, pod=pod)
+                vrpTaskList.append(vrpTask)
+
+            if forRawSIMO:
+                robot_idx = idx % len(self.Robots)
+                rawsimoTask = ExtractTask(env=self.env, robot=self.Robots[robot_idx], outputstation=self.OutputStations[robot_idx], pod=pod)
+                rawsimoTaskList.append(rawsimoTask)
+
+        return vrpTaskList, rawsimoTaskList
+
 
     def fixedLocationRawSIMO(self, taskList, start_nodes=None, end_nodes=None, assign=True):
 
         for task in taskList:
-            for pod in self.Pods:
-                if pod.location == task[0]:
-                    tempTask = ExtractTask(env=env,)
+            robot = task.robot
+            robot.taskList.append(task)
+
+        for robot in simulation.Robots:
+            simulation.env.process(robot.DoExtractTask(robot.taskList[0]))
+        env.run()
+
+
+
     def PhaseIIExperimentOneCycle(self, numTask):
         taskListRaw = generators.taskGenerator(network=simulation.network, numTask=numTask, numRobot=len(self.Robots))
 
@@ -468,6 +503,10 @@ if __name__ == "__main__":
     simulation.createOutputStations(locations)
     simulation.fillPods()
     simulation.distanceMatrixCalculate()
+
+    taskListVRP, taskListRawSIMO = simulation.taskGeneratorV2(4)
+    simulation.fixedLocationRawSIMO(taskListRawSIMO)
+
 
     itemlist = np.array(([1, 10],
                          [2, 10],

@@ -119,6 +119,7 @@ class Robot():
 
         if self.batteryLevel < 10:
             yield self.env.process(self.moveToChargingStationAndCharge())
+            return #DİKKAT
 
         self.createPath(extractTask.pod.location)
         yield self.env.process(self.move())
@@ -167,7 +168,7 @@ class Robot():
     #    return self.podsCarriedCount
 
     def chargeBattery(self):
-        self.chargeCycle += 1
+        self.chargeCycle += 1 #charge cycle direkt +1 artmasın
         gap = self.chargeThreshold - self.batteryLevel
         
         if self.batteryLevel < self.chargeThreshold:
@@ -176,12 +177,29 @@ class Robot():
         chargeTime = 3600*(gap/self.chargingRate)
         yield self.env.timeout(chargeTime)
 
-    def moveToChargingStationAndCharge(self):
+    # def moveToChargingStationAndCharge(self):
+    #     # Move to the charging station location
+    #     self.createPath(self.chargingStationLocation)
+    #     yield self.env.process(self.move())
+    #     # Charge the battery
+    #     yield self.env.process(self.chargeBattery())
+
+    def moveToChargingStationAndCharge(self, chargingStation):
         # Move to the charging station location
-        self.createPath(self.chargingStationLocation)
+        request = chargingStation.request()
+        yield request
+
+        self.createPath(self.chargingStation.location)
         yield self.env.process(self.move())
         # Charge the battery
         yield self.env.process(self.chargeBattery())
+
+        yield chargingStation.release(request)
+
+        yield self.env.process(self.DoExtractTask(extractTask=self.taskList[0]))
+
+    def goRest(self):
+        pass
 
 
 
@@ -218,6 +236,16 @@ class OutputStation(simpy.Resource):
 
     # def getPickItemsCount(self): # UPH counter
     #    return self.pickItemsCount
+
+class ChargingStation(simpy.Resource):
+    def __init__(self, env, capacity, location):
+        simpy.Resource.__init__(env=env, capacity=capacity)
+
+        self.env = env
+        self.capacity = capacity
+        self.location = location
+        #istasyonun gücü eklenebilir
+
 
 
 class Task():
