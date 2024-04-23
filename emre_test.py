@@ -105,7 +105,7 @@ class RMFS_Model():
         self.Robots = []
         self.ChargeQueue = []
         for idx, loc in enumerate(startLocations):
-            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=9, Model=self, chargingStationList=self.ChargingStations)
+            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=10, Model=self, chargingStationList=self.ChargingStations)
             self.Robots.append(tempRobot)
 
     def insertChargeQueue(self, robot):
@@ -422,7 +422,8 @@ class RMFS_Model():
         # Print solution on console.
         if solution:
             allRoutes = createRoutes(data=data, manager=manager, routing=routing)
-            if assign:assignTasks(allRoutes, task_dict)
+            if assign:
+                assignTasks(allRoutes, task_dict)
             dflist = vrp.print_solution(data, manager, routing, solution)
             return data, manager, routing, solution, dflist
 
@@ -563,7 +564,9 @@ if __name__ == "__main__":
                          [4, 10],
                          [5, 10],
                          [6, 10],
-                         [7, 10],))
+                         [7, 10],
+                         [8, 10],
+                         [9, 10],))
 
     selectedPodsList = simulation.podSelectionMaxHitRate(itemlist)
     extractTaskList = simulation.podSelectionHungarian(selectedPodsList, outputTask=True)
@@ -573,4 +576,5 @@ if __name__ == "__main__":
         simulation.env.process(robot.DoExtractTask(robot.taskList[0]))
 
     simulation.env.run()
+    a = 10
 

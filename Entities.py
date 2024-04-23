@@ -1,6 +1,7 @@
 import simpy
 import networkx as nx
 import layout as layout
+from simpy.events import AllOf
 
 class Pod(simpy.Resource):
     def __init__(self, env, location, skuDict=None, robot=None, status=None, takeItemList=None):
@@ -113,6 +114,10 @@ class Robot():
 
         if self.taskList:
             yield self.env.process(self.DoExtractTask(self.taskList[0]))
+        elif self.batteryLevel < 30: #robot boşsa şarja gitsin
+            yield self.env.process(self.selectChargingStationRawSIMO())
+        else:
+            yield self.env.process(self.goRest())
 
     def DoExtractTask(self, extractTask):
         PodFixedLocation = extractTask.pod.location
@@ -172,8 +177,9 @@ class Robot():
 
     def chargeBattery(self):
         self.chargeCycle += 1 #charge cycle direkt +1 artmasın
+        self.status = "charging"
         gap = self.chargeThreshold - self.batteryLevel
-        
+
         if self.batteryLevel < self.chargeThreshold:
             self.batteryLevel += gap
 
@@ -228,13 +234,20 @@ class Robot():
         # event = self.env.process(self.DoExtractTask(extractTask=self.taskList[0]))
         # event.callbacks.append(newRobot.moveToChargingStationAndChargeRawSIMO(chargingStation))
         # yield event
+        #all_events = [self.env.process(newRobot.moveToChargingStationAndChargeRawSIMO(chargingStation)), self.env.process(self.DoExtractTask(extractTask=self.taskList[0]))]
+        #burada index hatası verdi
+        if self.taskList:
+            all_events = [self.env.process(self.DoExtractTask(extractTask=self.taskList[0]))]
+        else:
+            all_events = [self.env.process(self.goRest())]
+        if newRobot != None:
+            all_events.append(self.env.process(newRobot.moveToChargingStationAndChargeRawSIMO(chargingStation)))
 
 
-        yield self.env.process(newRobot.moveToChargingStationAndChargeRawSIMO(chargingStation))
-
-        yield self.env.process(self.DoExtractTask(extractTask=self.taskList[0]))
+        yield AllOf(self.env, all_events)
 
     def goRest(self):
+        #buraya şarja gitmeyi de ekle, belirli bir eşiğin altındaysa şarja gitsin RawSIMO için
         self.status = "rest"
         yield self.env.timeout(0)
 
