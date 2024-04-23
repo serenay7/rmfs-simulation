@@ -34,7 +34,7 @@ class Pod(simpy.Resource):
 
 class Robot():
     def __init__(self, env, network_corridors, network, robotID, pod=None, currentNode=None,
-                 targetNode=None, currentTask=None, taskList=None, loadedSpeed=1, emptySpeed=2, takeTime=3, dropTime=3, batteryLevel = 41.6, moveLoaded = 14.53265, moveEmpty = 11.9566, chargingRate = 41.6, chargeThreshold=35, chargingStationLocation=(0, 0)):
+                 targetNode=None, currentTask=None, taskList=[], loadedSpeed=1, emptySpeed=2, takeTime=3, dropTime=3, batteryLevel = 41.6, moveLoaded = 14.53265, moveEmpty = 11.9566, chargingRate = 41.6, chargeThreshold=35, chargingStationList=[], Model = None, status = "rest"):
         self.env = env
         self.network = network
         self.network_corridors = network_corridors
@@ -55,7 +55,9 @@ class Robot():
         self.moveEmpty = moveEmpty
         self.chargingRate = chargingRate
         self.chargeThreshold = chargeThreshold
-        self.chargingStationLocation = chargingStationLocation
+        self.chargingStationList = chargingStationList
+        self.Model = Model
+        self.status = status #extract, rest, etc.
        # self.podsCarriedCount = 0 # Counts how many pods a robot carry.
 
     def completeTask(self):
@@ -118,9 +120,10 @@ class Robot():
         self.taskList.pop(0)
 
         if self.batteryLevel < 10:
-            yield self.env.process(self.moveToChargingStationAndCharge())
+            yield self.env.process(self.selectChargingStationRawSIMO())
             return #DİKKAT
 
+        self.status = "extract"
         self.createPath(extractTask.pod.location)
         yield self.env.process(self.move())
         yield self.env.process(self.takePod(extractTask.pod))
@@ -184,22 +187,57 @@ class Robot():
     #     # Charge the battery
     #     yield self.env.process(self.chargeBattery())
 
-    def moveToChargingStationAndCharge(self, chargingStation):
+    def selectChargingStationRawSIMO(self):
+        def manhattan_distance(point1, point2):
+            return abs(point1[0] - point2[0]) + abs(point1[1] - point2[1])
+
+        distList = []
+        for station in self.chargingStationList:
+            if station.currentRobot == None:
+                tempList = [station, manhattan_distance(station.location, self.currentNode)]
+                distList.append(tempList)
+
+        if len(distList) == 0:
+            self.Model.insertChargeQueue(robot=self)
+            yield self.env.process(self.goRest())
+
+        else:
+            min_distance = min(distList, key=lambda x: x[1])[1]
+
+            for item in distList:
+                if item[1] == min_distance:
+                    item[0].currentRobot = self
+                    yield self.env.process(self.moveToChargingStationAndChargeRawSIMO(item[0]))
+
+    def moveToChargingStationAndChargeRawSIMO(self, chargingStation):
         # Move to the charging station location
         request = chargingStation.request()
-        yield request
+        #yield self.env.process(request)
 
-        self.createPath(self.chargingStation.location)
+
+        self.createPath(chargingStation.location)
         yield self.env.process(self.move())
         # Charge the battery
         yield self.env.process(self.chargeBattery())
 
-        yield chargingStation.release(request)
+        #yield chargingStation.release(request)
+        chargingStation.currentRobot = None
+
+        # Model objesindeki genel şarj queuesundan en baştaki robotu çekiyor sonra bu robot üzerinden bu fonksiyonu tekrar çağırıyor
+        newRobot = self.Model.removeChargeQueue()
+        # event = self.env.process(self.DoExtractTask(extractTask=self.taskList[0]))
+        # event.callbacks.append(newRobot.moveToChargingStationAndChargeRawSIMO(chargingStation))
+        # yield event
+
+
+        yield self.env.process(newRobot.moveToChargingStationAndChargeRawSIMO(chargingStation))
 
         yield self.env.process(self.DoExtractTask(extractTask=self.taskList[0]))
 
     def goRest(self):
-        pass
+        self.status = "rest"
+        yield self.env.timeout(0)
+
 
 
 
@@ -238,12 +276,21 @@ class OutputStation(simpy.Resource):
     #    return self.pickItemsCount
 
 class ChargingStation(simpy.Resource):
-    def __init__(self, env, capacity, location):
-        simpy.Resource.__init__(env=env, capacity=capacity)
+    def __init__(self, env, capacity, location, currentRobot=None):
+        super().__init__(env=env, capacity=capacity)
 
         self.env = env
         self.capacity = capacity
         self.location = location
+        self.currentRobot = currentRobot
+
+    @property
+    def capacity(self):
+        return self._capacity
+
+    @capacity.setter
+    def capacity(self, value):
+        self._capacity = value
         #istasyonun gücü eklenebilir
 
 

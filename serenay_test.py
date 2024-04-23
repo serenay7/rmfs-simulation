@@ -6,7 +6,7 @@ import layout
 import random
 import ast
 from lp_podselection import podAndStation_combination, calculate_total_distances_for_all_requirements, min_max_diff, check_feasibility, columnMultiplication, assign_pods_to_stations
-#from vrp import create_data_model
+from emre_test import RMFS_Model
 
 if __name__ == "__main__":
     env = simpy.Environment()

@@ -3,7 +3,7 @@ import pandas as pd
 import simpy
 
 import generators
-from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, StorageTask, SKU
+from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, StorageTask, SKU, ChargingStation
 import layout
 import random
 import ast
@@ -88,8 +88,14 @@ class RMFS_Model():
         """
         self.OutputStations = []
         for loc in locations:
-            tempStation = OutputStation(self.env, location=loc)
+            tempStation = OutputStation(env=self.env, location=loc)
             self.OutputStations.append(tempStation)
+
+    def createChargingStations(self, locations):
+        self.ChargingStations = []
+        for loc in locations:
+            tempStation = ChargingStation(env=self.env, capacity=1, location=loc)
+            self.ChargingStations.append(tempStation)
 
     def createRobots(self, startLocations):
         """
@@ -97,10 +103,20 @@ class RMFS_Model():
         :param startLocations: List of tuples
         """
         self.Robots = []
+        self.ChargeQueue = []
         for idx, loc in enumerate(startLocations):
-            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[])
+            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=9, Model=self, chargingStationList=self.ChargingStations)
             self.Robots.append(tempRobot)
 
+    def insertChargeQueue(self, robot):
+        self.ChargeQueue.append(robot)
+
+    def removeChargeQueue(self, robot=None):
+        if robot == None:
+            if self.ChargeQueue:
+                return self.ChargeQueue.pop(0)
+            else:
+                return None
 
     def podSelectionHitRateCalculation(self, itemList):
         """
@@ -492,7 +508,7 @@ if __name__ == "__main__":
     simulation = RMFS_Model(env=env, network=rectangular_network)
     simulation.createPods()
     simulation.createSKUs()
-
+    """
     startLocations = [(0,0), (0,9)]
     simulation.createRobots(startLocations)
 
@@ -527,88 +543,34 @@ if __name__ == "__main__":
     #simulation.env.run(until=10)
     #simulation.env.run(until=15)
     simulation.env.run()
-    a = 10
+    """
 
+    startLocations = [(0, 0), (5, 0)]
+    simulation.createChargingStations([(0, 9)])
+    simulation.createRobots(startLocations)
 
-    layout.draw_network_with_shelves(rectangular_network, pos)
+    firstStation = (0,4)
+    locations = [firstStation]
 
-    network_corridors = layout.create_corridor_subgraph(rectangular_network)
+    simulation.createOutputStations(locations)
 
-    #node = list(rectangular_network.nodes)
-    #start_node1 = node[12]
-    start_node1 = (3,3)
-    #start_node2 = node[1]
-    #target_node1 = node[15]
-    #target_node1 = (3,1)
-    #target_node2 = node[10]
+    simulation.fillPods()
+    simulation.distanceMatrixCalculate()
 
     itemlist = np.array(([1, 10],
-                         [2, 10]))
+                         [2, 10],
+                         [3, 10],
+                         [4, 10],
+                         [5, 10],
+                         [6, 10],
+                         [7, 10],))
 
-    podSKUList = np.array(([1, 50],
-                           [2, 50]))
-    #samplePod1 = Pod(env, podSKUList, target_node1, None, "idle")
-    #samplePod2 = Pod(env, podSKUList, target_node2, None, "idle")
+    selectedPodsList = simulation.podSelectionMaxHitRate(itemlist)
+    extractTaskList = simulation.podSelectionHungarian(selectedPodsList, outputTask=True)
+    simulation.fixedLocationVRP(extractTaskList, assign=True)
 
+    for robot in simulation.Robots:
+        simulation.env.process(robot.DoExtractTask(robot.taskList[0]))
 
-    #robot2 = Robot(env, rectangular_network, network_corridors,2, None, start_node2)
-    #robot1.createPath(target_node1)
-    #env.process(robot1.move())
-    #env.process(robot1.takePod(samplePod))
+    simulation.env.run()
 
-    #sampleStorageTask1 = StorageTask(env, robot1, samplePod1, (3,1))
-    #env.process(robot1.DoStorageTask(sampleStorageTask1))
-
-    OStation1 = OutputStation(env, (0, 3), itemlist)
-    OStation2 = OutputStation(env, (5, 9), itemlist)
-
-    exp_df = pd.read_excel("./experiment/3x6-1Robot-2İstasyon.xlsx",sheet_name="OUTPUT FILTERED")
-    #exp_df["Bot"] = exp_df["Bot"].astype(int)
-    robot_count  = np.int_(exp_df["Bot"].max()) + 1
-    total_dist = 0
-    robot1 = Robot(env, network_corridors, rectangular_network, 1, None, (0, 0))
-    test = 0
-    for r in range(robot_count):
-        for index, row in exp_df.iterrows():
-            robot_id = int(row["Bot"])
-            if robot_id == r:
-                pod_loc = row["Coordinates"]
-                station = row["OutputStation"]
-                OStation = OStation1 if int(station) == 0 else OStation2
-                pod_loc_tuple = ast.literal_eval(pod_loc)
-                samplePod1 = Pod(env, podSKUList, pod_loc_tuple, None, "idle")
-                sampleExtractTask1 = ExtractTask(env, robot1, OStation, samplePod1)
-                env.process(robot1.DoExtractTask(sampleExtractTask1))
-
-                sampleStorageTask1 = StorageTask(env, robot1, samplePod1, pod_loc_tuple)
-                env.process(robot1.DoStorageTask(sampleStorageTask1))
-                env.run()
-                test += 1
-        #total_dist += robot1.stepsTaken
-        #print(robot1.stepsTaken)
-        print(test)
-
-
-
-
-
-
-
-    a = 10
-
-
-
-    #robot1.pod = samplePod1
-    #sampleExtractTask1 = ExtractTask(env, robot1, OStation1, samplePod1)
-    #sampleExtractTask2 = ExtractTask(env, robot2, OStation1, samplePod2)
-
-    #env.process(robot1.DoExtractTask(sampleExtractTask1))
-    #env.process(robot2.DoExtractTask(sampleExtractTask2))
-
-    #env.run(until=20)
-
-
-### UPH İÇİN
-# output_station = OutputStation(env, location, pickItemList)
-# After some simulation steps where PickItems might be called
-# print(f"PickItems was called {output_station.getPickItemsCount()} times.")
