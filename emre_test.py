@@ -488,7 +488,7 @@ class RMFS_Model():
 
 
     def PhaseIIExperimentOneCycle(self, numTask):
-        #TODO
+        # burayı yap
         taskListRaw = generators.taskGenerator(network=simulation.network, numTask=numTask, numRobot=len(self.Robots))
 
 
