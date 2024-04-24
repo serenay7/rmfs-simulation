@@ -217,7 +217,7 @@ class Robot():
 
     def moveToChargingStationAndChargeRawSIMO(self, chargingStation):
         # Move to the charging station location
-        request = chargingStation.request()
+        # request = chargingStation.request()
         #yield self.env.process(request)
 
 
