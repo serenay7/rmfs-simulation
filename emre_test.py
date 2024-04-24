@@ -100,7 +100,7 @@ class RMFS_Model():
     def createRobots(self, startLocations):
         """
         Creates robots and adds to a list which is a feature of RMFS_Model class
-        :param startLocations: List of tuples
+        :param startLocations: List of tuples [(0,0), (5,0)]
         """
         self.Robots = []
         self.ChargeQueue = []
@@ -151,6 +151,12 @@ class RMFS_Model():
 
     #DAHA ÇOK TEST YAZILIP DENENEBİLİR
     def podSelectionMaxHitRate(self, itemList, satisfiedReturn = False):
+        """
+
+        :param itemList:  2d np array
+        :param satisfiedReturn:
+        :return: list of pod objects
+        """
         def itemListSum(array_2d):
             """
             Aggregates itemList SKU-wise
@@ -437,12 +443,12 @@ class RMFS_Model():
                          [6, 10],
                          [7, 10],))
 
-        selectedPodsList = simulation.podSelectionMaxHitRate(itemlist)
-        extractTaskList = simulation.podSelectionHungarian(selectedPodsList, outputTask=True)
-        simulation.fixedLocationVRP(extractTaskList, assign=True)
+        selectedPodsList = self.podSelectionMaxHitRate(itemlist)
+        extractTaskList = self.podSelectionHungarian(selectedPodsList, outputTask=True)
+        self.fixedLocationVRP(extractTaskList, assign=True)
 
-        for robot in simulation.Robots:
-            simulation.env.process(robot.DoExtractTask(robot.taskList[0]))
+        for robot in self.Robots:
+            self.env.process(robot.DoExtractTask(robot.taskList[0]))
         env.run()
 
     def taskGeneratorV2(self, numTask, forVRP=True, forRawSIMO=True):
@@ -475,13 +481,14 @@ class RMFS_Model():
             robot = task.robot
             robot.taskList.append(task)
 
-        for robot in simulation.Robots:
-            simulation.env.process(robot.DoExtractTask(robot.taskList[0]))
+        for robot in self.Robots:
+            self.env.process(robot.DoExtractTask(robot.taskList[0]))
         env.run()
 
 
 
     def PhaseIIExperimentOneCycle(self, numTask):
+        #TODO
         taskListRaw = generators.taskGenerator(network=simulation.network, numTask=numTask, numRobot=len(self.Robots))
 
 
@@ -546,8 +553,9 @@ if __name__ == "__main__":
     simulation.env.run()
     """
 
-    startLocations = [(0, 0), (5, 0)]
+
     simulation.createChargingStations([(0, 9)])
+    startLocations = [(0, 0), (5, 0)]
     simulation.createRobots(startLocations)
 
     firstStation = (0,4)
@@ -571,6 +579,17 @@ if __name__ == "__main__":
     selectedPodsList = simulation.podSelectionMaxHitRate(itemlist)
     extractTaskList = simulation.podSelectionHungarian(selectedPodsList, outputTask=True)
     simulation.fixedLocationVRP(extractTaskList, assign=True)
+
+    def deneme(env, t):
+
+        yield env.timeout(t)
+        for robot in simulation.Robots:
+            if robot.status == "charging":
+                robot.batteryLevel += 1 #bunu 1 saniyede kaç şarj ediyorsa onunla değiştir
+            print(robot.batteryLevel)
+
+    for i in range(10):
+        simulation.env.process(deneme(env, i))
 
     for robot in simulation.Robots:
         simulation.env.process(robot.DoExtractTask(robot.taskList[0]))

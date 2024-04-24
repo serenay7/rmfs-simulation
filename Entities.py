@@ -241,6 +241,7 @@ class Robot():
         else:
             all_events = [self.env.process(self.goRest())]
         if newRobot != None:
+            # multi robotta nasıl çalışır
             all_events.append(self.env.process(newRobot.moveToChargingStationAndChargeRawSIMO(chargingStation)))
 
 
