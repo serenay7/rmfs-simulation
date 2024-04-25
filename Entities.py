@@ -105,6 +105,21 @@ class Robot():
             pod.robot = self.robotID #burası direkt pod.robot = self olabilir
             self.pod = pod
             yield self.env.timeout(self.takeTime)
+"""
+    def dropPod(self, pod):
+        
+        pod.status = "idle"
+        pod.robot = None
+        self.pod = None
+        yield self.env.timeout(self.dropTime)
+
+        if self.taskList:
+            yield self.env.process(self.DoExtractTask(self.taskList[0]))
+        elif self.batteryLevel < 30: #robot boşsa şarja gitsin
+            yield self.env.process(self.selectChargingStationRawSIMO())
+        else:
+            yield self.env.process(self.goRest())
+"""
 
     def dropPod(self, pod):
         pod.status = "idle"
@@ -181,7 +196,7 @@ class Robot():
         gap = self.chargeThreshold - self.batteryLevel
 
         if self.batteryLevel < self.chargeThreshold:
-            self.batteryLevel += gap
+            self.batteryLevel += gap #+1 arttır
 
         chargeTime = 3600*(gap/self.chargingRate)
         yield self.env.timeout(chargeTime)
