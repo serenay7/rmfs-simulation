@@ -35,7 +35,7 @@ class Pod(simpy.Resource):
 
 class Robot():
     def __init__(self, env, network_corridors, network, robotID, pod=None, currentNode=None,
-                 targetNode=None, currentTask=None, taskList=[], loadedSpeed=1, emptySpeed=2, takeTime=3, dropTime=3, batteryLevel = 41.6, moveLoaded = 14.53265, moveEmpty = 11.9566, chargingRate = 41.6, chargeThreshold=35, chargingStationList=[], Model = None, status = "rest"):
+                 targetNode=None, currentTask=None, taskList=[], loadedSpeed=1, emptySpeed=2, takeTime=3, dropTime=3, batteryLevel = 41.6, moveLoaded = 14.53265, moveEmpty = 11.9566, chargingRate = 41.6, chargeThreshold=35, chargingStationList=[], Model = None, status = "rest", MaxBattery = 41.6, PearlRate = 0.4, RestRate = 0.1, ChargeFlagRate = 0.8, MaxChargeRate = 0.85):
         self.env = env
         self.network = network
         self.network_corridors = network_corridors
@@ -59,10 +59,13 @@ class Robot():
         self.chargingStationList = chargingStationList
         self.Model = Model
         self.status = status #extract, rest, etc.
+        self.MaxBattery = MaxBattery
+        self.PearlRate = PearlRate
+        self.RestRate = RestRate
+        self.ChargeFlagRate = ChargeFlagRate
+        self.MaxChargeRate = MaxChargeRate
        # self.podsCarriedCount = 0 # Counts how many pods a robot carry.
 
-    def completeTask(self):
-        pass
 
     def createPath(self, targetNode, tempGraph = None):
         self.targetNode = targetNode
@@ -127,20 +130,33 @@ class Robot():
         self.pod = None
         yield self.env.timeout(self.dropTime)
 
-        if self.taskList:
-            yield self.env.process(self.DoExtractTask(self.taskList[0]))
-        elif self.batteryLevel < 30: #robot boşsa şarja gitsin
-            yield self.env.process(self.selectChargingStationRawSIMO())
-        else:
-            yield self.env.process(self.goRest())
+        if self.Model.ChargePolicy == "rawsimo":
+            if self.taskList:
+                yield self.env.process(self.DoExtractTask(self.taskList[0]))
+            elif self.batteryLevel < self.MaxBattery * self.ChargeFlagRate: #robot boşsa şarja gitsin
+                yield self.env.process(self.selectChargingStationRawSIMO())
+            else:
+                yield self.env.process(self.goRest())
+
+        elif self.Model.ChargePolicy == "pearl":
+            if self.batteryLevel <= self.MaxBattery * self.ChargeFlagRate:
+                yield self.env.process(self.checkAndGoToChargingStation())
+            else: #burası neden elif değil?
+                if self.taskList:
+                    yield self.env.process(self.DoExtractTask(self.taskList[0]))
+                else:
+                    yield self.env.process(self.goRest())
 
     def DoExtractTask(self, extractTask):
         PodFixedLocation = extractTask.pod.location
         self.currentTask = extractTask
         self.taskList.pop(0)
 
-        if self.batteryLevel < 10:
-            yield self.env.process(self.selectChargingStationRawSIMO())
+        if self.batteryLevel < self.MaxBattery * self.RestRate:
+            if self.Model.ChargePolicy == "rawsimo":
+                yield self.env.process(self.selectChargingStationRawSIMO())
+            elif self.Model.ChargePolicy == "pearl":
+                yield self.env.process(self.checkAndGoToChargingStation())
             return #DİKKAT
 
         self.status = "extract"
@@ -161,22 +177,42 @@ class Robot():
         yield self.env.process(self.move())
         yield self.env.process(self.dropPod(self.pod))
 
+    def selectChargingStationRawSIMO(self):
+        def manhattan_distance(point1, point2):
+            return abs(point1[0] - point2[0]) + abs(point1[1] - point2[1])
 
-    def DoStorageTask(self, storageTask):
-        #kullanılmıyor
-        tempGraph = layout.create_node_added_subgraph(storageTask.storageLocation, self.network_corridors, self.network)
-        self.createPath(storageTask.storageLocation, tempGraph=tempGraph)
-        del tempGraph
-        yield self.env.process(self.move())
-        yield self.env.process(self.dropPod(self.pod))
+        distList = []
+        for station in self.chargingStationList:
+            if station.currentRobot == None:
+                tempList = [station, manhattan_distance(station.location, self.currentNode)]
+                distList.append(tempList)
 
-    def ExecuteTaskList(self):
-        for task in self.taskList:
-            # buraya if yaz task'ın tipine baksın
-            self.DoExtractTask(task)
-            self.DoStorageTask()
+        if len(distList) == 0:
+            self.Model.insertChargeQueue(robot=self)
+            yield self.env.process(self.goRest())
 
+        else:
+            min_distance = min(distList, key=lambda x: x[1])[1]
+            found_closest = False
+            for item in distList:
+                if item[1] == min_distance and not found_closest:
+                    item[0].currentRobot = self
+                    yield self.env.process(self.moveToChargingStation(item[0]))
+                    found_closest = True
 
+    # def DoStorageTask(self, storageTask):
+    #     #kullanılmıyor
+    #     tempGraph = layout.create_node_added_subgraph(storageTask.storageLocation, self.network_corridors, self.network)
+    #     self.createPath(storageTask.storageLocation, tempGraph=tempGraph)
+    #     del tempGraph
+    #     yield self.env.process(self.move())
+    #     yield self.env.process(self.dropPod(self.pod))
+    #
+    # def ExecuteTaskList(self):
+    #     for task in self.taskList:
+    #         # buraya if yaz task'ın tipine baksın
+    #         self.DoExtractTask(task)
+    #         self.DoStorageTask()
 
 
     # def assignPod(self, pod):
@@ -208,6 +244,7 @@ class Robot():
     #     # Charge the battery
     #     yield self.env.process(self.chargeBattery())
 
+    """
     def selectChargingStationRawSIMO(self):
         def manhattan_distance(point1, point2):
             return abs(point1[0] - point2[0]) + abs(point1[1] - point2[1])
@@ -229,7 +266,7 @@ class Robot():
                 if item[1] == min_distance:
                     item[0].currentRobot = self
                     yield self.env.process(self.moveToChargingStationAndChargeRawSIMO(item[0]))
-
+    
     def moveToChargingStationAndChargeRawSIMO(self, chargingStation):
         # Move to the charging station location
         # request = chargingStation.request()
@@ -261,6 +298,59 @@ class Robot():
 
 
         yield AllOf(self.env, all_events)
+    """
+
+    def checkAndGoToChargingStation(self):
+        def manhattan_distance(point1, point2):
+            return abs(point1[0] - point2[0]) + abs(point1[1] - point2[1])
+
+        distList = []
+        for station in self.chargingStationList:
+            if station.currentRobot == None:
+                tempList = [station, manhattan_distance(station.location, self.currentNode)]
+                distList.append(tempList)
+
+
+        # boş olanlar içinde en yakınına gitsin, rawsimo kodunun bu kısmı alınabilir
+        if distList:
+            min_distance = min(distList, key=lambda x: x[1])[1]
+            found_closest = False # aynı uzaklıkta 2 istasyon olma ihtimaline karşı eklendi
+            for item in distList:
+                if item[1] == min_distance and not found_closest:
+                    item[0].currentRobot = self
+                    yield self.env.process(self.moveToChargingStation(item[0]))
+                    found_closest = True
+
+        else:
+            # Check for a robot at the station with a much higher battery level
+            charging_robots = [station.currentRobot for station in self.chargingStationList if station.currentRobot]
+            if charging_robots:
+                highest_battery_robot = max(charging_robots, key=lambda robot: robot.batteryLevel)
+                if highest_battery_robot.batteryLevel - self.batteryLevel > self.MaxBattery * self.PearlRate:
+                    # Swap the robots
+                    highest_battery_robot.stopCharging()
+                    highest_battery_robot.taskList = self.taskList
+                    self.taskList = []
+                    all_events = [self.env.process(self.moveToChargingStation(highest_battery_robot.station))]
+                    if highest_battery_robot.taskList:
+                        all_events.append(self.env.process(highest_battery_robot.DoExtractTask(extractTask=highest_battery_robot.taskList[0])))
+                    else:
+                        all_events.append(highest_battery_robot.goRest())
+                    yield AllOf(self.env, all_events)
+                elif self.batteryLevel < self.MaxBattery * self.RestRate:
+                    self.Model.insertChargeQueue(robot=self)
+                    yield self.env.process(self.goRest())  ## restten sonra şarja nasıl dahil olacak, sarj isastyonuna gitmeli
+                elif self.taskList:
+                    yield self.env.process(self.DoExtractTask(self.taskList[0]))
+                else:
+                    yield self.env.process(self.goRest())
+
+    def moveToChargingStation(self, chargingStation):
+
+        chargingStation.currentRobot = self
+        self.createPath(chargingStation.location)
+        yield self.env.process(self.move())
+
 
     def goRest(self):
         #buraya şarja gitmeyi de ekle, belirli bir eşiğin altındaysa şarja gitsin RawSIMO için

@@ -22,7 +22,7 @@ class Robot:
         self.pod = None
         yield self.env.timeout(self.dropTime)
 
-        if self.batteryLevel <= 80:
+        if self.batteryLevel <= self.MaxBattery * self.ChargeFlagRate:
             yield self.env.process(self.checkAndGoToChargingStation())
         else:
             if self.taskList:
@@ -32,6 +32,9 @@ class Robot:
 
     def checkAndGoToChargingStation(self):
         closest_station = min(self.chargingStations.Currentrobot=None, key=lambda station: station.location.distance_to(self.location)) #self.chargingstations==> self.model.ChargingStations
+
+
+
         #boş olanlar içinde en yakınına gitsin, rawsimo kodunun bu kısmı alınabilir
         if closest_station:
             yield self.env.process(self.moveToChargingStation(closest_station))
@@ -40,7 +43,7 @@ class Robot:
             charging_robots = [station.currentRobot for station in self.chargingStations if station.currentRobot]
             if charging_robots:
                 highest_battery_robot = max(charging_robots, key=lambda robot: robot.batteryLevel)
-                if highest_battery_robot.batteryLevel - self.batteryLevel > 40:
+                if highest_battery_robot.batteryLevel - self.batteryLevel > self.MaxBattery * :
                     # Swap the robots
                     highest_battery_robot.stopCharging()
                     highest_battery_robot.taskList = self.taskList
@@ -51,7 +54,7 @@ class Robot:
                     else:
                         all_events.append(highest_battery_robot.goRest())
                     yield AllOf(self.env, all_events)
-                elif self.batteryLevel < 10 :
+                elif self.batteryLevel < self.MaxBattery * self.RestRate :
                     yield self.env.process(self.goRest()) ## restten sonra şarja nasıl dahil olacak, sarj isastyonuna gitmeli
                 elif self.taskList:
                     yield self.env.process(self.DoExtractTask(self.taskList[0]))

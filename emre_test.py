@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import simpy
-
+from simpy.events import AllOf
 import generators
 from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, StorageTask, SKU, ChargingStation
 import layout
@@ -16,13 +16,17 @@ import vrp
 
 
 class RMFS_Model():
-    def __init__(self, env, network):
+    def __init__(self, env, network, TaskAssignmentPolicy="vrp", ChargePolicy="pearl", DropPodPolicy="fixed"):
         self.env = env
         self.network = network
         self.corridorSubgraph = layout.create_corridor_subgraph(network)
 
         pod_nodes = [node for node, data in network.nodes(data=True) if data.get('shelf', False)]
         self.podGraph = network.subgraph(pod_nodes) # Did not write .copy() to reference network itself
+
+        self.TaskAssignmentPolicy = TaskAssignmentPolicy #"rawsimo" or "vrp"
+        self.ChargePolicy = ChargePolicy #"rawsimo" or "pearl"
+        self.DropPodPolicy = DropPodPolicy #"fixed" or "closestTask"
 
     def createPods(self):
         podNodes = list(self.podGraph.nodes)
@@ -105,7 +109,7 @@ class RMFS_Model():
         self.Robots = []
         self.ChargeQueue = []
         for idx, loc in enumerate(startLocations):
-            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=10, Model=self, chargingStationList=self.ChargingStations)
+            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=4.15, chargingRate=100000 ,Model=self, chargingStationList=self.ChargingStations)
             self.Robots.append(tempRobot)
 
     def insertChargeQueue(self, robot):
@@ -491,6 +495,36 @@ class RMFS_Model():
         # burayı yap
         taskListRaw = generators.taskGenerator(network=simulation.network, numTask=numTask, numRobot=len(self.Robots))
 
+    def updateCharge(self, t, updateTime):
+
+        yield self.env.timeout(t*updateTime)
+        for chargingStation in self.ChargingStations:
+            if chargingStation.currentRobot != None:
+                robot = chargingStation.currentRobot
+                if robot.currentNode == chargingStation.location:
+                    robot.batteryLevel += robot.chargingRate/3600*updateTime
+                    if robot.batteryLevel >= robot.MaxBattery * robot.MaxChargeRate:
+                        newRobot = self.removeChargeQueue()
+                        all_events = []
+
+                        if newRobot:
+                            newRobot.status = "charging"
+                            chargingStation.currentRobot = newRobot
+                            all_events.append(self.env.process(newRobot.moveToChargingStation(chargingStation)))
+
+                        if robot.taskList:
+                            all_events.append(self.env.process(robot.DoExtractTask(robot.taskList[0])))
+                            #yield self.env.process(robot.DoExtractTask(robot.taskList[0]))
+                        else:
+                            all_events.append(self.env.process(robot.goRest()))
+                            #yield self.env.process(robot.goRest())
+
+                        yield AllOf(self.env, all_events)
+
+
+            # şarjı arttır ne kadar zamanda bir update yapılacaksa
+            # şarjı thresholdu geçeni istasyondan çıkar, görevine/reste yolla
+            # queuedan yeni robotu seç, özellikleri değiştir, goCharge
 
 
 if __name__ == "__main__":
@@ -587,8 +621,9 @@ if __name__ == "__main__":
             if robot.status == "charging":
                 robot.batteryLevel += 1 #bunu 1 saniyede kaç şarj ediyorsa onunla değiştir
             print(robot.batteryLevel)
-    for i in range(10):
-        simulation.env.process(deneme(env, i))
+
+    for i in range(1,20):
+        simulation.env.process(simulation.updateCharge(i, updateTime=1))
 
     for robot in simulation.Robots:
         simulation.env.process(robot.DoExtractTask(robot.taskList[0]))
