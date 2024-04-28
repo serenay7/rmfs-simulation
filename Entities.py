@@ -105,7 +105,7 @@ class Robot():
             pod.robot = self.robotID #burası direkt pod.robot = self olabilir
             self.pod = pod
             yield self.env.timeout(self.takeTime)
-"""
+    """
     def dropPod(self, pod):
         
         pod.status = "idle"
@@ -119,7 +119,7 @@ class Robot():
             yield self.env.process(self.selectChargingStationRawSIMO())
         else:
             yield self.env.process(self.goRest())
-"""
+    """
 
     def dropPod(self, pod):
         pod.status = "idle"
