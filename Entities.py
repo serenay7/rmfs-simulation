@@ -328,10 +328,16 @@ class Robot():
                 highest_battery_robot = max(charging_robots, key=lambda robot: robot.batteryLevel)
                 if highest_battery_robot.batteryLevel - self.batteryLevel > self.MaxBattery * self.PearlRate:
                     # Swap the robots
-                    highest_battery_robot.stopCharging()
+                    # highest_battery_robot.stopCharging()
                     highest_battery_robot.taskList = self.taskList
                     self.taskList = []
-                    all_events = [self.env.process(self.moveToChargingStation(highest_battery_robot.station))]
+
+                    stationNode = highest_battery_robot.currentNode
+                    for station in self.chargingStationList:
+                        if station.location == stationNode:
+                            currentStation = station
+
+                    all_events = [self.env.process(self.moveToChargingStation(currentStation))]
                     if highest_battery_robot.taskList:
                         all_events.append(self.env.process(highest_battery_robot.DoExtractTask(extractTask=highest_battery_robot.taskList[0])))
                     else:
@@ -356,9 +362,6 @@ class Robot():
         #buraya şarja gitmeyi de ekle, belirli bir eşiğin altındaysa şarja gitsin RawSIMO için
         self.status = "rest"
         yield self.env.timeout(0)
-
-
-
 
 
 class SKU():
