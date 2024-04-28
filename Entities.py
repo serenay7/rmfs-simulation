@@ -226,6 +226,7 @@ class Robot():
     # def getPodsCarriedCount(self): # TO COUNT HOW MANY PODS A ROBOT CARRY
     #    return self.podsCarriedCount
 
+    """
     def chargeBattery(self):
         self.chargeCycle += 1 #charge cycle direkt +1 artmasın
         self.status = "charging"
@@ -236,7 +237,7 @@ class Robot():
 
         chargeTime = 3600*(gap/self.chargingRate)
         yield self.env.timeout(chargeTime)
-
+    """
     # def moveToChargingStationAndCharge(self):
     #     # Move to the charging station location
     #     self.createPath(self.chargingStationLocation)
@@ -338,6 +339,7 @@ class Robot():
                             currentStation = station
 
                     all_events = [self.env.process(self.moveToChargingStation(currentStation))]
+                    self.status = "charging"
                     if highest_battery_robot.taskList:
                         all_events.append(self.env.process(highest_battery_robot.DoExtractTask(extractTask=highest_battery_robot.taskList[0])))
                     else:
