@@ -21,7 +21,7 @@ class Robot:
         self.pod = None
         yield self.env.timeout(self.dropTime)
 
-        if self.batteryLevel =< 80:
+        if self.batteryLevel <= 80:
             yield self.env.process(self.checkAndGoToChargingStation())
         else:
             if self.taskList:
@@ -31,7 +31,7 @@ class Robot:
 
     def checkAndGoToChargingStation(self):
         closest_station = min(self.chargingStations, key=lambda station: station.location.distance_to(self.location)) #self.chargingstations==> self.model.ChargingStations
-
+        #boş olanlar içinde en yakınına gitsin, rawsimo kodunun bu kısmı alınabilir
         if closest_station.capacity > 0: #station.currentrobot bakacaksın
             # There's a free spot at the closest station
             yield self.env.process(self.moveToChargingStation(closest_station))
@@ -47,8 +47,8 @@ class Robot:
                     yield self.env.process(self.moveToChargingStation(highest_battery_robot.station))
                     #highest battery robot, yeni task'a başlayacak
                 elif self.batteryLevel < 10 :
-                    yield self.env.process(self.goRest())
-                elif self.taskList:
+                    yield self.env.process(self.goRest()) ## restten sonra şarja nasıl dahil olacak, sarj isastyonuna gitmeli
+                elif self.taskList: #önce tasklist kontrol etsin
                     yield self.env.process(self.DoExtractTask(self.taskList[0]))
                 else:
                     yield self.env.process(self.goRest())
