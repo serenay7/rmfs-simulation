@@ -1,4 +1,5 @@
 import simpy
+from simpy.events import AllOf
 
 class ChargingStation(simpy.Resource):
     def __init__(self, env, capacity, location, currentRobot=None):
@@ -30,10 +31,9 @@ class Robot:
                 yield self.env.process(self.goRest())
 
     def checkAndGoToChargingStation(self):
-        closest_station = min(self.chargingStations, key=lambda station: station.location.distance_to(self.location)) #self.chargingstations==> self.model.ChargingStations
+        closest_station = min(self.chargingStations.Currentrobot=None, key=lambda station: station.location.distance_to(self.location)) #self.chargingstations==> self.model.ChargingStations
         #boş olanlar içinde en yakınına gitsin, rawsimo kodunun bu kısmı alınabilir
-        if closest_station.capacity > 0: #station.currentrobot bakacaksın
-            # There's a free spot at the closest station
+        if closest_station:
             yield self.env.process(self.moveToChargingStation(closest_station))
         else:
             # Check for a robot at the station with a much higher battery level
@@ -43,12 +43,17 @@ class Robot:
                 if highest_battery_robot.batteryLevel - self.batteryLevel > 40:
                     # Swap the robots
                     highest_battery_robot.stopCharging()
-                    highest_battery_robot.taskList = self.taskList #self.tasklist'i none'a çekeceğiz
-                    yield self.env.process(self.moveToChargingStation(highest_battery_robot.station))
-                    #highest battery robot, yeni task'a başlayacak
+                    highest_battery_robot.taskList = self.taskList
+                    self.taskList = []
+                    all_events = [self.env.process(self.moveToChargingStation(highest_battery_robot.station))]
+                    if highest_battery_robot.taskList:
+                        all_events.append(self.env.process(highest_battery_robot.DoExtractTask(extractTask=highest_battery_robot.taskList[0])))
+                    else:
+                        all_events.append(highest_battery_robot.goRest())
+                    yield AllOf(self.env, all_events)
                 elif self.batteryLevel < 10 :
                     yield self.env.process(self.goRest()) ## restten sonra şarja nasıl dahil olacak, sarj isastyonuna gitmeli
-                elif self.taskList: #önce tasklist kontrol etsin
+                elif self.taskList:
                     yield self.env.process(self.DoExtractTask(self.taskList[0]))
                 else:
                     yield self.env.process(self.goRest())

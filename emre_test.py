@@ -587,7 +587,6 @@ if __name__ == "__main__":
             if robot.status == "charging":
                 robot.batteryLevel += 1 #bunu 1 saniyede kaç şarj ediyorsa onunla değiştir
             print(robot.batteryLevel)
-
     for i in range(10):
         simulation.env.process(deneme(env, i))
 
