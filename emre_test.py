@@ -622,6 +622,9 @@ if __name__ == "__main__":
                 robot.batteryLevel += 1 #bunu 1 saniyede kaç şarj ediyorsa onunla değiştir
             print(robot.batteryLevel)
 
+    simulation.Robots[0].batteryLevel =
+    simulation.Robots[1].batteryLevel =
+
     for i in range(1,20):
         simulation.env.process(simulation.updateCharge(i, updateTime=1))
 
