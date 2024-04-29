@@ -105,10 +105,10 @@ class Robot():
         if pod.status == "taken":
             raise Exception("Pod is already taken")
         else:
-            pod.status = "taken"
-            pod.robot = self.robotID #burası direkt pod.robot = self olabilir
-            self.pod = pod
             yield self.env.timeout(self.takeTime)
+            pod.status = "taken"
+            pod.robot = self.robotID  # burası direkt pod.robot = self olabilir
+            self.pod = pod
     """
     def dropPod(self, pod):
         
@@ -325,6 +325,8 @@ class Robot():
             for item in distList:
                 if item[1] == min_distance and not found_closest:
                     item[0].currentRobot = self
+                    self.status = "charging"
+                    self.Model.fixedLocationVRP(self.Model.extractTaskList, assign=True)
                     yield self.env.process(self.moveToChargingStation(item[0]))
                     found_closest = True
 

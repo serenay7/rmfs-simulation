@@ -548,28 +548,73 @@ class RMFS_Model():
     def updateCharge(self, t, updateTime):
 
         yield self.env.timeout(t*updateTime)
-        for chargingStation in self.ChargingStations:
-            if chargingStation.currentRobot != None:
-                robot = chargingStation.currentRobot
-                if robot.currentNode == chargingStation.location:
-                    robot.batteryLevel += robot.chargingRate/3600*updateTime
-                    if robot.batteryLevel >= robot.MaxBattery * robot.MaxChargeRate:
-                        newRobot = self.removeChargeQueue()
-                        all_events = []
+        if self.ChargePolicy == "rawsimo":
+            for chargingStation in self.ChargingStations:
+                if chargingStation.currentRobot != None:
+                    robot = chargingStation.currentRobot
+                    if robot.currentNode == chargingStation.location:
+                        robot.batteryLevel += robot.chargingRate/3600*updateTime
+                        if robot.batteryLevel >= robot.MaxBattery * robot.MaxChargeRate:
+                            newRobot = self.removeChargeQueue()
+                            all_events = []
 
-                        if newRobot:
-                            newRobot.status = "charging"
-                            chargingStation.currentRobot = newRobot
-                            all_events.append(self.env.process(newRobot.moveToChargingStation(chargingStation)))
+                            if newRobot:
+                                newRobot.status = "charging"
+                                chargingStation.currentRobot = newRobot
+                                all_events.append(self.env.process(newRobot.moveToChargingStation(chargingStation)))
 
-                        if robot.taskList:
-                            all_events.append(self.env.process(robot.DoExtractTask(robot.taskList[0])))
-                            #yield self.env.process(robot.DoExtractTask(robot.taskList[0]))
-                        else:
-                            all_events.append(self.env.process(robot.goRest()))
-                            #yield self.env.process(robot.goRest())
+                            if robot.taskList:
+                                all_events.append(self.env.process(robot.DoExtractTask(robot.taskList[0])))
+                                #yield self.env.process(robot.DoExtractTask(robot.taskList[0]))
+                            else:
+                                all_events.append(self.env.process(robot.goRest()))
+                                #yield self.env.process(robot.goRest())
 
-                        yield AllOf(self.env, all_events)
+                            yield AllOf(self.env, all_events)
+
+        if self.ChargePolicy == "pearl":
+            for chargingStation in self.ChargingStations:
+                if chargingStation.currentRobot != None:
+                    robot = chargingStation.currentRobot
+                    if robot.currentNode == chargingStation.location:
+                        robot.batteryLevel += robot.chargingRate / 3600 * updateTime
+                        if robot.batteryLevel >= robot.MaxBattery * robot.MaxChargeRate:
+                            newRobot = self.removeChargeQueue()
+                            all_events = []
+
+                            if newRobot:
+                                newRobot.status = "charging"
+                                chargingStation.currentRobot = newRobot
+                                all_events.append(self.env.process(newRobot.moveToChargingStation(chargingStation)))
+
+                                if robot.taskList:
+                                    all_events.append(self.env.process(robot.DoExtractTask(robot.taskList[0])))
+                                    # yield self.env.process(robot.DoExtractTask(robot.taskList[0]))
+                                else:
+                                    all_events.append(self.env.process(robot.goRest()))
+                                    # yield self.env.process(robot.goRest())
+
+                                yield AllOf(self.env, all_events)
+                            else:
+
+
+    def pearlVRP(self):
+
+        self.fixedLocationVRP(self.extractTaskList, assign=True)
+        self.env._queue = []
+
+        # env saati mod(cycleSeconds) ve bir sonraki cyclea olan uzaklık?
+
+        for i in range(1, cycleSeconds + 1):
+            self.env.process(simulation.updateCharge(i, updateTime=1))
+
+        for robot in self.Robots:
+            if robot.currentTask != None:
+                self.env.process(robot.DoExtractTask(robot.currentTask))
+            else:
+                self.env.process(robot.DoExtractTask(robot.taskList[0]))
+
+
 
     def startCycleVRP(self, itemlist, cycleSeconds, cycleIdx):
         #generatordan itemList createle
@@ -586,6 +631,7 @@ class RMFS_Model():
 
         selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemlist, satisfiedReturn=True)
         extractTaskList = self.podSelectionHungarian(selectedPodsList, outputTask=True)
+        self.extractTaskList = extractTaskList
         self.fixedLocationVRP(extractTaskList, assign=True)
 
         self.env._queue = []
@@ -598,6 +644,8 @@ class RMFS_Model():
                 self.env.process(robot.DoExtractTask(robot.currentTask))
             else:
                 self.env.process(robot.DoExtractTask(robot.taskList[0]))
+
+
 
         self.env.run(until=cycleSeconds*(cycleIdx+1))
 
