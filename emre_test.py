@@ -323,7 +323,8 @@ class RMFS_Model():
             if start_nodes == None:
                 for i, robot in enumerate(self.Robots):
                     if robot.status != "charging" and robot.batteryLevel > robot.MaxBattery * robot.RestRate:
-                        idx = list(self.network.nodes).index(robot.currentNode)
+                        if robot.pod != None: idx = list(self.network.nodes).index(robot.currentTask.pod.fixedLocation)
+                        else: idx = list(self.network.nodes).index(robot.currentNode)
                         node_idx.append(idx)
                         start_idx.append(len(node_idx)-1)
             else:
@@ -386,6 +387,9 @@ class RMFS_Model():
             for robot in self.Robots:
                 #if charge mı değil mi bak, veya rotalamada bu robot görev istedi mi direkt sıraya göre atama yapıyor
                 #sadece extract create ediyor
+                robot.taskList = []
+                if robot.pod == None: robot.currentTask = None
+
                 if robot.status != "charging":
                     for node in routeList[idx][1:-1]:
                         tempTask = task_dict[node]
@@ -469,8 +473,8 @@ class RMFS_Model():
         notDeliveredPods = []
 
         for robot in self.Robots:
-            if robot.pod != None and type(robot.currentTask) == ExtractTask:
-                notDeliveredPods.append(robot.currentTask)
+            if robot.pod == None and type(robot.currentTask) == ExtractTask:
+                notDeliveredPods.append(robot.currentTask.pod)
             if robot.taskList:
                 for task in robot.taskList:
                     notDeliveredPods.append(task.pod)
@@ -482,11 +486,12 @@ class RMFS_Model():
                 tempList.append([sku, value])
 
         tempArr = np.array(tempList)
-        itemListRaw = np.vstack((itemlist, tempArr))
-        finalItemList = itemListSum(itemListRaw)
-
-        return finalItemList
-
+        if len(tempArr)>0:
+            itemListRaw = np.vstack((itemlist, tempArr))
+            finalItemList = itemListSum(itemListRaw)
+            return finalItemList
+        else:
+            return itemlist
 
 
 
@@ -525,14 +530,15 @@ class RMFS_Model():
         env.run()
 
     def orderGenerator(self, numOrder, skuExistencethreshold=0.5, maxAmount=10):
-        orders = np.zeros(shape=(numOrder, len(self.SKUs)))
-        # boş order yollayabilir DİKKAT
-        # for i in range(stationCapacity * numStation):
-        for i in range(numOrder):
-            for j in range(len(self.SKUs)):
-                if random.random() > skuExistencethreshold:
-                    orders[i, j] = np.random.randint(1, maxAmount + 1)
 
+        skus = random.sample(range(1, len(self.Pods)*4), numOrder)
+        tempList = []
+
+        for sku in skus:
+            amount = random.randint(5, 10)
+            tempList.append([sku, amount])
+
+        orders = np.array(tempList)
         return orders
 
     def PhaseIIExperimentOneCycle(self, numTask):
@@ -582,12 +588,19 @@ class RMFS_Model():
         extractTaskList = self.podSelectionHungarian(selectedPodsList, outputTask=True)
         self.fixedLocationVRP(extractTaskList, assign=True)
 
+        self.env._queue = []
+
         for i in range(1, cycleSeconds+1):
             self.env.process(simulation.updateCharge(i, updateTime=1))
 
         for robot in self.Robots:
-            self.env.process(robot.DoExtractTask(robot.taskList[0]))
-        env.run()
+            if robot.currentTask != None:
+                self.env.process(robot.DoExtractTask(robot.currentTask))
+            else:
+                self.env.process(robot.DoExtractTask(robot.taskList[0]))
+
+        self.env.run(until=cycleSeconds*(cycleIdx+1))
+
     def MultiCycleVRP(self, numCycle, cycleSeconds):
 
         for cycle_idx in range(numCycle):
@@ -613,6 +626,8 @@ if __name__ == "__main__":
 
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+
+    #layout.draw_network_with_shelves(rectangular_network, pos)
 
     nodes = list(rectangular_network.nodes)
     simulation = RMFS_Model(env=env, network=rectangular_network)
@@ -668,8 +683,10 @@ if __name__ == "__main__":
     simulation.fillPods()
     simulation.distanceMatrixCalculate()
 
-    simulation.MultiCycleVRP(3,20)
+    simulation.MultiCycleVRP(10,20)
 
+    """
+    
     itemlist = np.array(([1, 10],
                          [2, 10],
                          [3, 10],
@@ -703,4 +720,5 @@ if __name__ == "__main__":
 
     simulation.env.run()
     a = 10
+    """
 

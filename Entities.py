@@ -7,10 +7,11 @@ class Pod(simpy.Resource):
     def __init__(self, env, location, skuDict=None, robot=None, status=None, takeItemList=None):
         self.env = env
         self.skuDict = skuDict
-        self.location = location #(0,0), (5,5)
+        self.location = location #(0,0), (5,5) current location
         self.robot = robot
         self.status = status
         self.takeItemList = takeItemList #bu listedeki itemler ve yanlarındaki amount kadar bu poddan alınacak, OStationda bunu yapacak fonksiyon yaz
+        self.fixedLocation = location
 
         if skuDict is None:
             self.skuDict = {}
@@ -125,10 +126,10 @@ class Robot():
     """
 
     def dropPod(self, pod):
+        yield self.env.timeout(self.dropTime)
         pod.status = "idle"
         pod.robot = None
         self.pod = None
-        yield self.env.timeout(self.dropTime)
 
         if self.Model.ChargePolicy == "rawsimo":
             if self.taskList:
@@ -148,34 +149,39 @@ class Robot():
                     yield self.env.process(self.goRest())
 
     def DoExtractTask(self, extractTask):
-        PodFixedLocation = extractTask.pod.location
-        self.currentTask = extractTask
-        self.taskList.pop(0)
+        if self.currentTask != extractTask:
+            self.taskList.pop(0)
 
-        if self.batteryLevel < self.MaxBattery * self.RestRate:
+        PodFixedLocation = extractTask.pod.fixedLocation
+        self.currentTask = extractTask
+
+        if self.batteryLevel < self.MaxBattery * self.RestRate and self.pod == None:
             if self.Model.ChargePolicy == "rawsimo":
                 yield self.env.process(self.selectChargingStationRawSIMO())
             elif self.Model.ChargePolicy == "pearl":
                 yield self.env.process(self.checkAndGoToChargingStation())
             return #DİKKAT
 
-        self.status = "extract"
-        self.createPath(extractTask.pod.location)
-        yield self.env.process(self.move())
-        yield self.env.process(self.takePod(extractTask.pod))
+        if self.pod == None:
+            self.status = "extract"
+            self.createPath(extractTask.pod.location)
+            yield self.env.process(self.move())
+            yield self.env.process(self.takePod(extractTask.pod))
 
-        tempGraph = layout.create_node_added_subgraph(self.pod.location, self.network_corridors, self.network)
-        self.createPath(extractTask.outputstation.location, tempGraph=tempGraph)
-        del tempGraph
-        yield self.env.process(self.move())
+        if self.pod != None:
+            if self.currentNode == PodFixedLocation or self.targetNode == extractTask.outputstation.location:
+                tempGraph = layout.create_node_added_subgraph(self.currentNode, self.network_corridors, self.network)
+                self.createPath(extractTask.outputstation.location, tempGraph=tempGraph)
+                del tempGraph
+                yield self.env.process(self.move())
         #extractTask.outputstation.currentPod = self.pod
         #extractTask.outputstation.PickedItems()
-
-        tempGraph = layout.create_node_added_subgraph(PodFixedLocation, self.network_corridors, self.network)
-        self.createPath(PodFixedLocation, tempGraph=tempGraph)
-        del tempGraph
-        yield self.env.process(self.move())
-        yield self.env.process(self.dropPod(self.pod))
+            if self.currentNode != PodFixedLocation:
+                tempGraph = layout.create_node_added_subgraph(PodFixedLocation, self.network_corridors, self.network)
+                self.createPath(PodFixedLocation, tempGraph=tempGraph)
+                del tempGraph
+                yield self.env.process(self.move())
+            yield self.env.process(self.dropPod(self.pod))
 
     def selectChargingStationRawSIMO(self):
         def manhattan_distance(point1, point2):
