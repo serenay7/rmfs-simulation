@@ -110,7 +110,7 @@ class RMFS_Model():
         self.Robots = []
         self.ChargeQueue = []
         for idx, loc in enumerate(startLocations):
-            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=41.6, chargingRate=100000, Model=self, chargingStationList=self.ChargingStations)
+            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=41.6, chargingRate=36000, Model=self, chargingStationList=self.ChargingStations)
             self.Robots.append(tempRobot)
 
     def insertChargeQueue(self, robot):
@@ -751,10 +751,8 @@ if __name__ == "__main__":
 
     simulation.fillPods()
     simulation.distanceMatrixCalculate()
-    #simulation.Robots[0].batteryLevel = 10
-    #simulation.Robots[1].batteryLevel = 5
-    #simulation.Robots[1].status = "rest"
-    #simulation.insertChargeQueue(simulation.Robots[1])
+    simulation.Robots[0].batteryLevel = 10
+    simulation.Robots[1].batteryLevel = 100
 
 
     simulation.MultiCycleVRP(10,40)
