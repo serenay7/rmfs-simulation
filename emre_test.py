@@ -12,11 +12,12 @@ from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 import networkx as nx
 import vrp
+import math
 
 
 
 class RMFS_Model():
-    def __init__(self, env, network, TaskAssignmentPolicy="vrp", ChargePolicy="rawsimo", DropPodPolicy="fixed"):
+    def __init__(self, env, network, TaskAssignmentPolicy="vrp", ChargePolicy="pearl", DropPodPolicy="fixed"):
         self.env = env
         self.network = network
         self.corridorSubgraph = layout.create_corridor_subgraph(network)
@@ -109,7 +110,7 @@ class RMFS_Model():
         self.Robots = []
         self.ChargeQueue = []
         for idx, loc in enumerate(startLocations):
-            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=41.6, chargingRate=100000 ,Model=self, chargingStationList=self.ChargingStations)
+            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=41.6, chargingRate=100000, Model=self, chargingStationList=self.ChargingStations)
             self.Robots.append(tempRobot)
 
     def insertChargeQueue(self, robot):
@@ -323,8 +324,12 @@ class RMFS_Model():
             if start_nodes == None:
                 for i, robot in enumerate(self.Robots):
                     if robot.status != "charging" and robot.batteryLevel > robot.MaxBattery * robot.RestRate:
-                        if robot.pod != None: idx = list(self.network.nodes).index(robot.currentTask.pod.fixedLocation)
-                        else: idx = list(self.network.nodes).index(robot.currentNode)
+                        #if robot.pod != None: idx = list(self.network.nodes).index(robot.currentTask.pod.fixedLocation)
+                        #else: idx = list(self.network.nodes).index(robot.currentNode)
+                        if robot.currentTask:
+                            idx = list(self.network.nodes).index(robot.currentTask.pod.fixedLocation)
+                        else:
+                            idx = list(self.network.nodes).index(robot.currentNode)
                         node_idx.append(idx)
                         start_idx.append(len(node_idx)-1)
             else:
@@ -388,9 +393,9 @@ class RMFS_Model():
                 #if charge mı değil mi bak, veya rotalamada bu robot görev istedi mi direkt sıraya göre atama yapıyor
                 #sadece extract create ediyor
                 robot.taskList = []
-                if robot.pod == None: robot.currentTask = None
+                #if robot.pod == None: robot.currentTask = None
 
-                if robot.status != "charging":
+                if robot.status != "charging" and robot.batteryLevel > robot.MaxBattery * robot.RestRate:
                     for node in routeList[idx][1:-1]:
                         tempTask = task_dict[node]
                         tempTask.robot = robot
@@ -473,8 +478,8 @@ class RMFS_Model():
         notDeliveredPods = []
 
         for robot in self.Robots:
-            if robot.pod == None and type(robot.currentTask) == ExtractTask:
-                notDeliveredPods.append(robot.currentTask.pod)
+            #if robot.pod == None and type(robot.currentTask) == ExtractTask: # vrp anında pod almaya giden robotların görevlerini silip onları da dahil etmek için
+            #    notDeliveredPods.append(robot.currentTask.pod)
             if robot.taskList:
                 for task in robot.taskList:
                     notDeliveredPods.append(task.pod)
@@ -545,9 +550,9 @@ class RMFS_Model():
         # burayı yap
         taskListRaw = generators.taskGenerator(network=simulation.network, numTask=numTask, numRobot=len(self.Robots))
 
-    def updateCharge(self, t, updateTime):
+    def updateCharge(self, t, updateTime, addition=0):
 
-        yield self.env.timeout(t*updateTime)
+        yield self.env.timeout(t*updateTime+addition)
         if self.ChargePolicy == "rawsimo":
             for chargingStation in self.ChargingStations:
                 if chargingStation.currentRobot != None:
@@ -580,41 +585,50 @@ class RMFS_Model():
                         robot.batteryLevel += robot.chargingRate / 3600 * updateTime
                         if robot.batteryLevel >= robot.MaxBattery * robot.MaxChargeRate:
                             newRobot = self.removeChargeQueue()
-                            all_events = []
-
+                            chargingStation.currentRobot = None
+                            robot.status = "extract"
                             if newRobot:
                                 newRobot.status = "charging"
-                                chargingStation.currentRobot = newRobot
-                                all_events.append(self.env.process(newRobot.moveToChargingStation(chargingStation)))
-
-                                if robot.taskList:
-                                    all_events.append(self.env.process(robot.DoExtractTask(robot.taskList[0])))
-                                    # yield self.env.process(robot.DoExtractTask(robot.taskList[0]))
-                                else:
-                                    all_events.append(self.env.process(robot.goRest()))
-                                    # yield self.env.process(robot.goRest())
-
-                                yield AllOf(self.env, all_events)
+                                yield self.env.process(self.pearlVRP(simultaneousEvent=newRobot.moveToChargingStation(chargingStation)))
+                                yield self.env.process(newRobot.moveToChargingStation(chargingStation))
                             else:
+                                yield self.env.process(self.pearlVRP())
+                            if robot.taskList:
+                                yield self.env.process(robot.DoExtractTask(robot.taskList[0]))
 
 
-    def pearlVRP(self):
+
+    def pearlVRP(self, simultaneousEvent=None):
 
         self.fixedLocationVRP(self.extractTaskList, assign=True)
+
+        """
         self.env._queue = []
 
         # env saati mod(cycleSeconds) ve bir sonraki cyclea olan uzaklık?
+        time = self.env.now
+        start = (self.cycleSeconds-time)%1
 
-        for i in range(1, cycleSeconds + 1):
-            self.env.process(simulation.updateCharge(i, updateTime=1))
+        remaining = self.cycleSeconds-math.ceil(time)
+
+        for i in range(0, remaining + 1):
+            self.env.process(self.updateCharge(i, updateTime=1, addition=start))
+
+        if simultaneousEvent:
+            self.env.process(simultaneousEvent)
 
         for robot in self.Robots:
-            if robot.currentTask != None:
+            if robot.status == "charging" or robot.batteryLevel < robot.MaxBattery * robot.RestRate:
+                continue
+            elif robot.currentTask != None:
                 self.env.process(robot.DoExtractTask(robot.currentTask))
             else:
                 self.env.process(robot.DoExtractTask(robot.taskList[0]))
 
-
+        until = self.cycleSeconds * (self.currentCycle + 1)
+        #self.env.run(until=self.cycleSeconds * (self.currentCycle + 1))
+        """
+        yield self.env.timeout(0)
 
     def startCycleVRP(self, itemlist, cycleSeconds, cycleIdx):
         #generatordan itemList createle
@@ -634,16 +648,20 @@ class RMFS_Model():
         self.extractTaskList = extractTaskList
         self.fixedLocationVRP(extractTaskList, assign=True)
 
-        self.env._queue = []
+        #self.env._queue = []
 
         for i in range(1, cycleSeconds+1):
-            self.env.process(simulation.updateCharge(i, updateTime=1))
+            self.env.process(self.updateCharge(i, updateTime=1))
 
-        for robot in self.Robots:
-            if robot.currentTask != None:
-                self.env.process(robot.DoExtractTask(robot.currentTask))
-            else:
-                self.env.process(robot.DoExtractTask(robot.taskList[0]))
+        if cycleIdx == 0:
+            for robot in self.Robots:
+                if robot.status == "charging" and robot.targetNode != robot.currentNode:
+                    robot.createPath(robot.targetNode)
+                    self.env.process(robot.move())
+                elif robot.currentTask != None:
+                    self.env.process(robot.DoExtractTask(robot.currentTask))
+                else:
+                    self.env.process(robot.DoExtractTask(robot.taskList[0]))
 
 
 
@@ -651,7 +669,10 @@ class RMFS_Model():
 
     def MultiCycleVRP(self, numCycle, cycleSeconds):
 
+        self.numCycle = numCycle
+        self.cycleSeconds = cycleSeconds
         for cycle_idx in range(numCycle):
+            self.currentCycle = cycle_idx
             itemlist = (self.orderGenerator(numOrder=20))
             self.startCycleVRP(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
 
@@ -720,7 +741,7 @@ if __name__ == "__main__":
 
 
     simulation.createChargingStations([(0, 9)])
-    startLocations = [(0, 0), (5, 0)]
+    startLocations = [(0, 8), (5, 0)]
     simulation.createRobots(startLocations)
 
     firstStation = (0,4)
@@ -730,8 +751,13 @@ if __name__ == "__main__":
 
     simulation.fillPods()
     simulation.distanceMatrixCalculate()
+    #simulation.Robots[0].batteryLevel = 10
+    #simulation.Robots[1].batteryLevel = 5
+    #simulation.Robots[1].status = "rest"
+    #simulation.insertChargeQueue(simulation.Robots[1])
 
-    simulation.MultiCycleVRP(10,20)
+
+    simulation.MultiCycleVRP(10,40)
 
     """
     

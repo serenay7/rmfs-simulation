@@ -102,11 +102,11 @@ class Robot():
 
 
     def takePod(self, pod):
-        if pod.status == "taken":
+        if pod.status == "extractTaken" or pod.status == "storageTaken":
             raise Exception("Pod is already taken")
         else:
             yield self.env.timeout(self.takeTime)
-            pod.status = "taken"
+            pod.status = "extractTaken"
             pod.robot = self.robotID  # burası direkt pod.robot = self olabilir
             self.pod = pod
     """
@@ -169,14 +169,15 @@ class Robot():
             yield self.env.process(self.takePod(extractTask.pod))
 
         if self.pod != None:
-            if self.currentNode == PodFixedLocation or self.targetNode == extractTask.outputstation.location:
+            if self.pod.status == "extractTaken" or self.targetNode == extractTask.outputstation.location:
                 tempGraph = layout.create_node_added_subgraph(self.currentNode, self.network_corridors, self.network)
                 self.createPath(extractTask.outputstation.location, tempGraph=tempGraph)
                 del tempGraph
                 yield self.env.process(self.move())
+                self.pod.status = "storageTaken"
         #extractTask.outputstation.currentPod = self.pod
         #extractTask.outputstation.PickedItems()
-            if self.currentNode != PodFixedLocation:
+            if self.pod.status == "storageTaken": #or self.currentNode != PodFixedLocation:
                 tempGraph = layout.create_node_added_subgraph(PodFixedLocation, self.network_corridors, self.network)
                 self.createPath(PodFixedLocation, tempGraph=tempGraph)
                 del tempGraph
@@ -308,6 +309,7 @@ class Robot():
     """
 
     def checkAndGoToChargingStation(self):
+        #pearlMain
         def manhattan_distance(point1, point2):
             return abs(point1[0] - point2[0]) + abs(point1[1] - point2[1])
 
@@ -326,7 +328,7 @@ class Robot():
                 if item[1] == min_distance and not found_closest:
                     item[0].currentRobot = self
                     self.status = "charging"
-                    self.Model.fixedLocationVRP(self.Model.extractTaskList, assign=True)
+                    yield self.env.process(self.Model.pearlVRP(simultaneousEvent=self.moveToChargingStation(item[0]))) #simultaneousEvent kısmı gereksiz olabilir test aldıktan sonra pearlVRP kontrol et
                     yield self.env.process(self.moveToChargingStation(item[0]))
                     found_closest = True
 
