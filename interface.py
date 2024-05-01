@@ -14,6 +14,19 @@ app.title("RMFS Simulation Interface")
 frame = ttk.Frame(app, padding="10")
 frame.pack(fill=tk.BOTH, expand=True)
 
+# Variables to hold the state of checkbuttons
+do_taguchi = tk.BooleanVar()
+pick_station_amount_taguchi = tk.BooleanVar()
+pick_station_location_taguchi = tk.BooleanVar()
+charge_station_amount_taguchi = tk.BooleanVar()
+charge_station_location_taguchi = tk.BooleanVar()
+robot_amount_taguchi = tk.BooleanVar()
+charge_flag_rate_taguchi = tk.BooleanVar()
+max_charge_rate_taguchi = tk.BooleanVar()
+
+
+# SETTINGS START
+
 ttk.Label(frame, text="Warehouse & Simulation Settings", font=('Helvetica', 12, 'bold')).grid(row=0, column=0, columnspan=2, sticky=tk.W)
 
 ttk.Label(frame, text="Vertical Aisles:").grid(row=1, column=0, sticky=tk.W) #TO BE UPDATED
@@ -120,14 +133,24 @@ max_charge_rate_entry = ttk.Entry(frame)
 max_charge_rate_entry.grid(row=22, column=1)
 max_charge_rate_entry.insert(0, "0.85")
 
-# Continue adding more widgets for each input similarly...
+ttk.Label(frame, text="Taguchi Experiment Frame", font=('Helvetica', 12, 'bold')).grid(row=23, column=0, columnspan=2, sticky=tk.W)
+
+ttk.Checkbutton(frame, text="Enable Taguchi Experiment", variable=do_taguchi).grid(row=24, column=0, sticky=tk.W)
+
+ttk.Checkbutton(frame, text="Pick Station Amount", variable=pick_station_amount_taguchi).grid(row=25, column=0, sticky=tk.W)
+ttk.Checkbutton(frame, text="Pick Station Location", variable=pick_station_location_taguchi).grid(row=26, column=0, sticky=tk.W)
+ttk.Checkbutton(frame, text="Charge Station Amount", variable=charge_station_amount_taguchi).grid(row=27, column=0, sticky=tk.W)
+ttk.Checkbutton(frame, text="Charge Station Location", variable=charge_station_location_taguchi).grid(row=28, column=0, sticky=tk.W)
+ttk.Checkbutton(frame, text="Robot Amount", variable=robot_amount_taguchi).grid(row=29, column=0, sticky=tk.W)
+ttk.Checkbutton(frame, text="Charge Flag Rate", variable=charge_flag_rate_taguchi).grid(row=30, column=0, sticky=tk.W)
+ttk.Checkbutton(frame, text="Max Charge Rate", variable=max_charge_rate_taguchi).grid(row=31, column=0, sticky=tk.W)
 
 # Simulation button
 run_button = ttk.Button(frame, text="Run Simulation", command=run_simulation)
-run_button.grid(row=23, column=0, columnspan=2)
+run_button.grid(row=35, column=0, columnspan=2)
 
 # Result label
 result_label = ttk.Label(frame, text="")
-result_label.grid(row=24, column=0, columnspan=2)
+result_label.grid(row=36, column=0, columnspan=2)
 
 app.mainloop()
