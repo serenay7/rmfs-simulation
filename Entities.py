@@ -150,11 +150,7 @@ class Robot():
                     yield self.env.process(self.goRest())
 
     def DoExtractTask(self, extractTask):
-        if self.currentTask != extractTask:
-            self.taskList.pop(0)
 
-        PodFixedLocation = extractTask.pod.fixedLocation
-        self.currentTask = extractTask
 
         if self.batteryLevel <= self.MaxBattery * self.RestRate and self.pod == None:
             if self.Model.ChargePolicy == "rawsimo":
@@ -162,6 +158,11 @@ class Robot():
             elif self.Model.ChargePolicy == "pearl":
                 yield self.env.process(self.checkAndGoToChargingStation())
             return #DİKKAT
+
+        if self.currentTask != extractTask:
+            self.taskList.pop(0)
+        PodFixedLocation = extractTask.pod.fixedLocation
+        self.currentTask = extractTask
 
         if self.pod == None:
             self.status = "extract"

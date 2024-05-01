@@ -28,6 +28,7 @@ class RMFS_Model():
         self.TaskAssignmentPolicy = TaskAssignmentPolicy #"rawsimo" or "vrp"
         self.ChargePolicy = ChargePolicy #"rawsimo" or "pearl"
         self.DropPodPolicy = DropPodPolicy #"fixed" or "closestTask"
+        self.timeStatDF = pd.DataFrame(columns=['time', 'robotID', 'robotStatus', 'stepsTaken', 'batteryLevel'])
 
     def createPods(self):
         podNodes = list(self.podGraph.nodes)
@@ -601,7 +602,13 @@ class RMFS_Model():
 
     def pearlVRP(self, simultaneousEvent=None):
 
-        self.fixedLocationVRP(self.extractTaskList, assign=True)
+        tempList = []
+        for robot in self.Robots:
+            tempList.append(robot.currentTask)
+
+        uncompletedTasks = list(filter(lambda x: x not in tempList, self.extractTaskList))
+
+        self.fixedLocationVRP(uncompletedTasks, assign=True)
 
         """
         self.env._queue = []
@@ -631,6 +638,17 @@ class RMFS_Model():
         """
         yield self.env.timeout(0)
 
+    def plotTimeStat(self):
+        pass
+    def collectTimeStat(self,t):
+
+        yield self.env.timeout(t * 60)
+        for robot in self.Robots:
+            #new_row = {'time': self.env.now, 'robotID': robot.robotID, 'robotStatus': robot.status, 'stepsTaken':robot.stepsTaken, 'batteryLevel':robot.batteryLevel}
+            new_row = [self.env.now, robot.robotID, robot.status, robot.stepsTaken, robot.batteryLevel]
+            #self.timeStatDF = self.timeStatDF.append(new_row, ignore_index=True)
+            self.timeStatDF.loc[len(self.timeStatDF.index)] = new_row
+
     def startCycleVRP(self, itemlist, cycleSeconds, cycleIdx):
         #generatordan itemList createle
         newItemlist = np.array(([1, 10],
@@ -652,7 +670,10 @@ class RMFS_Model():
         #self.env._queue = []
 
         for i in range(1, cycleSeconds+1):
-            self.env.process(self.updateCharge(i, updateTime=1))
+            self.env.process(self.updateCharge(t=i, updateTime=1))
+
+        for i in range(0, self.cycleSeconds//60 + 1):
+            self.env.process(self.collectTimeStat(t=i))
 
         if cycleIdx == 0:
             for robot in self.Robots:
@@ -764,7 +785,7 @@ if __name__ == "__main__":
     #simulation.Robots[1].batteryLevel = 100
 
 
-    simulation.MultiCycleVRP(32,900)
+    simulation.MultiCycleVRP(96,900)
 
     """
     
