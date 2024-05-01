@@ -110,7 +110,7 @@ class RMFS_Model():
         self.Robots = []
         self.ChargeQueue = []
         for idx, loc in enumerate(startLocations):
-            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=41.6, chargingRate=36000, Model=self, chargingStationList=self.ChargingStations)
+            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=41.6, chargingRate=41.6, Model=self, chargingStationList=self.ChargingStations)
             self.Robots.append(tempRobot)
 
     def insertChargeQueue(self, robot):
@@ -193,6 +193,7 @@ class RMFS_Model():
         if satisfiedReturn:
             self.selectedPodsList = selectedPodsList
             self.satisfiedList = satisfiedList
+
             return selectedPodsList, satisfiedList
 
         return selectedPodsList
@@ -660,12 +661,18 @@ class RMFS_Model():
                     self.env.process(robot.move())
                 elif robot.currentTask != None:
                     self.env.process(robot.DoExtractTask(robot.currentTask))
-                else:
+                elif robot.taskList:
                     self.env.process(robot.DoExtractTask(robot.taskList[0]))
+                else:
+                    self.env.process(robot.goRest())
+        else:
+            for robot in self.Robots:
+                if robot.status == "rest" and robot.batteryLevel > robot.MaxBattery * robot.RestRate:
+                    if robot.taskList:
+                        self.env.process(robot.DoExtractTask(robot.taskList[0]))
 
 
-
-        self.env.run(until=cycleSeconds*(cycleIdx+1))
+        #self.env.run(until=cycleSeconds*(cycleIdx+1))
 
     def MultiCycleVRP(self, numCycle, cycleSeconds):
 
@@ -673,8 +680,9 @@ class RMFS_Model():
         self.cycleSeconds = cycleSeconds
         for cycle_idx in range(numCycle):
             self.currentCycle = cycle_idx
-            itemlist = (self.orderGenerator(numOrder=20))
+            itemlist = (self.orderGenerator(numOrder=100))
             self.startCycleVRP(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
+            self.env.run(until=self.env.now + cycleSeconds)
 
 
 if __name__ == "__main__":
@@ -740,22 +748,23 @@ if __name__ == "__main__":
     """
 
 
-    simulation.createChargingStations([(0, 9)])
-    startLocations = [(0, 8), (5, 0)]
+    simulation.createChargingStations([(0, 9), (15, 0)])
+    startLocations = [(0, 8), (5, 0), (10, 9), (15, 0), (5, 6)]
     simulation.createRobots(startLocations)
 
-    firstStation = (0,4)
-    locations = [firstStation]
+    firstStation = (0, 4)
+    secondStation = (15, 4)
+    locations = [firstStation, secondStation]
 
     simulation.createOutputStations(locations)
 
     simulation.fillPods()
     simulation.distanceMatrixCalculate()
-    simulation.Robots[0].batteryLevel = 10
-    simulation.Robots[1].batteryLevel = 100
+    #simulation.Robots[0].batteryLevel = 10
+    #simulation.Robots[1].batteryLevel = 100
 
 
-    simulation.MultiCycleVRP(10,40)
+    simulation.MultiCycleVRP(32,900)
 
     """
     

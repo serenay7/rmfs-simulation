@@ -127,6 +127,7 @@ class Robot():
 
     def dropPod(self, pod):
         yield self.env.timeout(self.dropTime)
+        #print("pod dropped", self.pod.fixedLocation)
         pod.status = "idle"
         pod.robot = None
         self.pod = None
@@ -155,7 +156,7 @@ class Robot():
         PodFixedLocation = extractTask.pod.fixedLocation
         self.currentTask = extractTask
 
-        if self.batteryLevel < self.MaxBattery * self.RestRate and self.pod == None:
+        if self.batteryLevel <= self.MaxBattery * self.RestRate and self.pod == None:
             if self.Model.ChargePolicy == "rawsimo":
                 yield self.env.process(self.selectChargingStationRawSIMO())
             elif self.Model.ChargePolicy == "pearl":
