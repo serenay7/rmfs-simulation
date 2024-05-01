@@ -14,100 +14,120 @@ app.title("RMFS Simulation Interface")
 frame = ttk.Frame(app, padding="10")
 frame.pack(fill=tk.BOTH, expand=True)
 
-# Adding widgets for each input
-ttk.Label(frame, text="Pick Station Amount:").grid(row=0, column=0, sticky=tk.W)
+ttk.Label(frame, text="Warehouse & Simulation Settings", font=('Helvetica', 12, 'bold')).grid(row=0, column=0, columnspan=2, sticky=tk.W)
+
+ttk.Label(frame, text="Vertical Aisles:").grid(row=1, column=0, sticky=tk.W) #TO BE UPDATED
+warehouse_vertical_entry = ttk.Entry(frame)
+warehouse_vertical_entry.grid(row=1, column=1)
+warehouse_vertical_entry.insert(0, "10")  # Default value
+
+ttk.Label(frame, text="Horizontal Aisles:").grid(row=2, column=0, sticky=tk.W) #TO BE UPDATED
+warehouse_horizontal_entry = ttk.Entry(frame)
+warehouse_horizontal_entry.grid(row=2, column=1)
+warehouse_horizontal_entry.insert(0, "16")  # Default value
+
+ttk.Label(frame, text="Pick Station Amount:").grid(row=3, column=0, sticky=tk.W)
 pick_station_amount_entry = ttk.Entry(frame)
-pick_station_amount_entry.grid(row=0, column=1)
-pick_station_amount_entry.insert(0, "Default Depo Value")  # Default value
+pick_station_amount_entry.grid(row=3, column=1)
+pick_station_amount_entry.insert(0, "2")  # Default value
 
-ttk.Label(frame, text="Pick Station Location:").grid(row=1, column=0, sticky=tk.W)
-pick_station_location_entry = ttk.Entry(frame)
-pick_station_location_entry.grid(row=1, column=1)
+ttk.Label(frame, text="Pick Station Location:").grid(row=4, column=0, sticky=tk.W)
+pick_station_location_combo = ttk.Combobox(frame, values=["TOP", "BOTTOM", "LEFT", "RIGHT"])
+pick_station_location_combo.grid(row=4, column=1)
+pick_station_location_combo.set("TOP")  # Default value
 
-'''
-ttk.Label(frame, text="Replenish Station Amount:").grid(row=2, column=0, sticky=tk.W)
-replenish_station_amount_entry = ttk.Entry(frame)
-replenish_station_amount_entry.grid(row=2, column=1)
-
-ttk.Label(frame, text="Replenish Station Location:").grid(row=3, column=0, sticky=tk.W)
-replenish_station_location_entry = ttk.Entry(frame)
-replenish_station_location_entry.grid(row=3, column=1)'''
-
-ttk.Label(frame, text="Charge Station Amount:").grid(row=4, column=0, sticky=tk.W)
+ttk.Label(frame, text="Charge Station Amount:").grid(row=5, column=0, sticky=tk.W)
 charge_station_amount_entry = ttk.Entry(frame)
-charge_station_amount_entry.grid(row=4, column=1)
+charge_station_amount_entry.grid(row=5, column=1)
+charge_station_amount_entry.insert(0, "1")  # Default value
 
-ttk.Label(frame, text="Charge Station Location:").grid(row=5, column=0, sticky=tk.W)
-charge_station_location_entry = ttk.Entry(frame)
-charge_station_location_entry.grid(row=5, column=1)
+ttk.Label(frame, text="Charge Station Location:").grid(row=6, column=0, sticky=tk.W)
+charge_station_location_combo = ttk.Combobox(frame, values=["TOP", "BOTTOM", "LEFT", "RIGHT"])
+charge_station_location_combo.grid(row=6, column=1)
+charge_station_location_combo.set("DOWN")
 
-ttk.Label(frame, text="Simulation Runtime:").grid(row=6, column=0, sticky=tk.W)
+ttk.Label(frame, text="Simulation Runtime (sec):").grid(row=7, column=0, sticky=tk.W)
 runtime_entry = ttk.Entry(frame)
-runtime_entry.grid(row=6, column=1)
+runtime_entry.grid(row=7, column=1)
+runtime_entry.insert(0, "1000")
 
-ttk.Label(frame, text="Warehouse Size:").grid(row=7, column=0, sticky=tk.W) #TO BE UPDATED
-warehouse_entry = ttk.Entry(frame)
-warehouse_entry.grid(row=7, column=1)
+ttk.Label(frame, text="Robot Settings", font=('Helvetica', 12, 'bold')).grid(row=8, column=0, columnspan=2, sticky=tk.W)
 
-ttk.Label(frame, text="Robot Amount:").grid(row=8, column=0, sticky=tk.W) #TO BE UPDATED
-robot_amount_entry = ttk.Entry(frame)
-robot_amount_entry.grid(row=8, column=1)
-
-ttk.Label(frame, text="Loaded Speed:").grid(row=9, column=0, sticky=tk.W) #TO BE UPDATED
+ttk.Label(frame, text="Robot Amount:").grid(row=9, column=0, sticky=tk.W)
 robot_amount_entry = ttk.Entry(frame)
 robot_amount_entry.grid(row=9, column=1)
+robot_amount_entry.insert(0, "2")
 
-ttk.Label(frame, text="Empty Speed:").grid(row=10, column=0, sticky=tk.W) #TO BE UPDATED
-robot_amount_entry = ttk.Entry(frame)
-robot_amount_entry.grid(row=10, column=1)
+ttk.Label(frame, text="Loaded Speed (m/s):").grid(row=10, column=0, sticky=tk.W)
+loaded_speed_entry = ttk.Entry(frame)
+loaded_speed_entry.grid(row=10, column=1)
+loaded_speed_entry.insert(0, "1")
 
-ttk.Label(frame, text="Take Time:").grid(row=11, column=0, sticky=tk.W) #TO BE UPDATED
-robot_amount_entry = ttk.Entry(frame)
-robot_amount_entry.grid(row=11, column=1)
+ttk.Label(frame, text="Empty Speed (m/s):").grid(row=11, column=0, sticky=tk.W)
+empty_speed_entry = ttk.Entry(frame)
+empty_speed_entry.grid(row=11, column=1)
+empty_speed_entry.insert(0, "2")
 
-ttk.Label(frame, text="Drop Time:").grid(row=12, column=0, sticky=tk.W) #TO BE UPDATED
-robot_amount_entry = ttk.Entry(frame)
-robot_amount_entry.grid(row=12, column=1)
+ttk.Label(frame, text="Take Time (sec):").grid(row=12, column=0, sticky=tk.W) #TO BE UPDATED
+take_time_entry = ttk.Entry(frame)
+take_time_entry.grid(row=12, column=1)
+take_time_entry.insert(0, "3")
 
-ttk.Label(frame, text="Loaded Battery Consumption:").grid(row=13, column=0, sticky=tk.W) #TO BE UPDATED
-robot_amount_entry = ttk.Entry(frame)
-robot_amount_entry.grid(row=13, column=1)
+ttk.Label(frame, text="Drop Time (sec):").grid(row=13, column=0, sticky=tk.W) #TO BE UPDATED
+drop_time_entry = ttk.Entry(frame)
+drop_time_entry.grid(row=13, column=1)
+drop_time_entry.insert(0, "3")
 
-ttk.Label(frame, text="Empty Battery Consumption:").grid(row=14, column=0, sticky=tk.W) #TO BE UPDATED
-robot_amount_entry = ttk.Entry(frame)
-robot_amount_entry.grid(row=14, column=1)
+ttk.Label(frame, text="Loaded Battery Consumption (Ah):").grid(row=14, column=0, sticky=tk.W)
+loaded_battery_consumption_entry = ttk.Entry(frame)
+loaded_battery_consumption_entry.grid(row=14, column=1)
+loaded_battery_consumption_entry.insert(0, "14.53265")
 
-ttk.Label(frame, text="Charging Rate:").grid(row=15, column=0, sticky=tk.W) #TO BE UPDATED
-robot_amount_entry = ttk.Entry(frame)
-robot_amount_entry.grid(row=15, column=1)
+ttk.Label(frame, text="Empty Battery Consumption (Ah):").grid(row=15, column=0, sticky=tk.W)
+empty_battery_consumption_entry = ttk.Entry(frame)
+empty_battery_consumption_entry.grid(row=15, column=1)
+empty_battery_consumption_entry.insert(0, "11.9566")
 
-ttk.Label(frame, text="Maximum Battery:").grid(row=16, column=0, sticky=tk.W) #TO BE UPDATED
-robot_amount_entry = ttk.Entry(frame)
-robot_amount_entry.grid(row=16, column=1)
+ttk.Label(frame, text="Charging Rate (Ah):").grid(row=16, column=0, sticky=tk.W)
+charging_rate_entry = ttk.Entry(frame)
+charging_rate_entry.grid(row=16, column=1)
+charging_rate_entry.insert(0, "41.6")
 
-ttk.Label(frame, text="Pearl Rate:").grid(row=17, column=0, sticky=tk.W) #TO BE UPDATED
-robot_amount_entry = ttk.Entry(frame)
-robot_amount_entry.grid(row=17, column=1)
+ttk.Label(frame, text="Maximum Battery (Ah):").grid(row=17, column=0, sticky=tk.W)
+maximum_battery_entry = ttk.Entry(frame)
+maximum_battery_entry.grid(row=17, column=1)
+maximum_battery_entry.insert(0, "41.6")
 
-ttk.Label(frame, text="Rest Rate:").grid(row=18, column=0, sticky=tk.W) #TO BE UPDATED
-robot_amount_entry = ttk.Entry(frame)
-robot_amount_entry.grid(row=18, column=1)
+ttk.Label(frame, text="Charge Policy Settings", font=('Helvetica', 12, 'bold')).grid(row=18, column=0, columnspan=2, sticky=tk.W)
 
-ttk.Label(frame, text="Charge Flag Rate:").grid(row=19, column=0, sticky=tk.W) #TO BE UPDATED
-robot_amount_entry = ttk.Entry(frame)
-robot_amount_entry.grid(row=19, column=1)
+ttk.Label(frame, text="Pearl Rate:").grid(row=19, column=0, sticky=tk.W)
+pearl_rate_entry = ttk.Entry(frame)
+pearl_rate_entry.grid(row=19, column=1)
+pearl_rate_entry.insert(0, "0.4")
 
-ttk.Label(frame, text="Max Charge Rate:").grid(row=20, column=0, sticky=tk.W) #TO BE UPDATED
-robot_amount_entry = ttk.Entry(frame)
-robot_amount_entry.grid(row=20, column=1)
+ttk.Label(frame, text="Rest Rate:").grid(row=20, column=0, sticky=tk.W) #TO BE UPDATED
+rest_rate_entry = ttk.Entry(frame)
+rest_rate_entry.grid(row=20, column=1)
+rest_rate_entry.insert(0, "0.1")
+
+ttk.Label(frame, text="Charge Flag Rate:").grid(row=21, column=0, sticky=tk.W) #TO BE UPDATED
+charge_flag_rate_entry = ttk.Entry(frame)
+charge_flag_rate_entry.grid(row=21, column=1)
+charge_flag_rate_entry.insert(0, "0.8")
+
+ttk.Label(frame, text="Max Charge Rate:").grid(row=22, column=0, sticky=tk.W) #TO BE UPDATED
+max_charge_rate_entry = ttk.Entry(frame)
+max_charge_rate_entry.grid(row=22, column=1)
+max_charge_rate_entry.insert(0, "0.85")
+
 # Continue adding more widgets for each input similarly...
 
 # Simulation button
 run_button = ttk.Button(frame, text="Run Simulation", command=run_simulation)
-run_button.grid(row=21, column=0, columnspan=2)
+run_button.grid(row=23, column=0, columnspan=2)
 
 # Result label
 result_label = ttk.Label(frame, text="")
-result_label.grid(row=22, column=0, columnspan=2)
+result_label.grid(row=24, column=0, columnspan=2)
 
 app.mainloop()
