@@ -18,6 +18,7 @@ frame.pack(fill=tk.BOTH, expand=True)
 ttk.Label(frame, text="Pick Station Amount:").grid(row=0, column=0, sticky=tk.W)
 pick_station_amount_entry = ttk.Entry(frame)
 pick_station_amount_entry.grid(row=0, column=1)
+pick_station_amount_entry.insert(0, "Default Depo Value")  # Default value
 
 ttk.Label(frame, text="Pick Station Location:").grid(row=1, column=0, sticky=tk.W)
 pick_station_location_entry = ttk.Entry(frame)
