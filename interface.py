@@ -103,10 +103,10 @@ robot_amount_entry.grid(row=20, column=1)
 
 # Simulation button
 run_button = ttk.Button(frame, text="Run Simulation", command=run_simulation)
-run_button.grid(row=20, column=0, columnspan=2)
+run_button.grid(row=21, column=0, columnspan=2)
 
 # Result label
 result_label = ttk.Label(frame, text="")
-result_label.grid(row=21, column=0, columnspan=2)
+result_label.grid(row=22, column=0, columnspan=2)
 
 app.mainloop()
