@@ -457,7 +457,7 @@ class RMFS_Model():
             dflist = vrp.print_solution(data, manager, routing, solution)
             return data, manager, routing, solution, dflist
 
-    def combineItemLists(self, itemlist):
+    def combineItemListsVRP(self, itemlist):
 
         def itemListSum(array_2d):
             """
@@ -678,7 +678,7 @@ class RMFS_Model():
                          [7, 10],))
 
         if cycleIdx != 0:
-            itemlist = self.combineItemLists(itemlist=itemlist)
+            itemlist = self.combineItemListsVRP(itemlist=itemlist)
 
         selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemlist, satisfiedReturn=True)
         extractTaskList = self.podSelectionHungarian(selectedPodsList, outputTask=True)
@@ -737,10 +737,14 @@ class RMFS_Model():
             taskList.append(task)
         return taskList
 
+    def combineItemListsRawSIMO(self, itemlist):
+        pass
+
+
     def startCycleRawSIMO(self, itemlist, cycleSeconds, cycleIdx):
 
         if cycleIdx != 0:
-            itemlist = self.combineItemLists(itemlist=itemlist)
+            itemlist = self.combineItemListsRawSIMO(itemlist=itemlist)
 
         itemListDivided = np.reshape(itemlist, newshape=(len(self.OutputStations), itemlist.shape[0] // len(self.OutputStations), itemlist.shape[1]))
 
@@ -785,9 +789,9 @@ class RMFS_Model():
         for cycle_idx in range(numCycle):
             self.currentCycle = cycle_idx
             if allItemList:
-                itemlist = (self.orderGenerator(numOrder=numOrderPerCycle))
-            else:
                 itemlist = allItemList[cycle_idx]
+            else:
+                itemlist = (self.orderGenerator(numOrder=numOrderPerCycle))
             self.startCycleRawSIMO(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
             self.env.run(until=self.env.now + cycleSeconds)
         if printOutput:
