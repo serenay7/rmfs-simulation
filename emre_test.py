@@ -871,7 +871,7 @@ if __name__ == "__main__":
 
 
     simulation.MultiCycleVRP(96,900, printOutput=True)
-
+    a
     """
     
     itemlist = np.array(([1, 10],
