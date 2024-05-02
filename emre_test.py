@@ -111,8 +111,9 @@ class RMFS_Model():
         self.Robots = []
         self.ChargeQueue = []
         for idx, loc in enumerate(startLocations):
-            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=41.6, chargingRate=41.6, Model=self, chargingStationList=self.ChargingStations)
+            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=41.6, chargingRate=41.6, Model=self, ChargeFlagRate=0.85, MaxChargeRate = 0.95, PearlRate = 0.4, RestRate = 0.1, chargingStationList=self.ChargingStations)
             self.Robots.append(tempRobot)
+
 
     def insertChargeQueue(self, robot):
         self.ChargeQueue.append(robot)
@@ -718,10 +719,11 @@ class RMFS_Model():
         self.cycleSeconds = cycleSeconds
         for cycle_idx in range(numCycle):
             self.currentCycle = cycle_idx
+            print("Cycle: ", cycle_idx)
             if allItemList:
-                itemlist = (self.orderGenerator(numOrder=numOrderPerCycle))
-            else:
                 itemlist = allItemList[cycle_idx]
+            else:
+                itemlist = (self.orderGenerator(numOrder=numOrderPerCycle))
             self.startCycleVRP(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
             self.env.run(until=self.env.now + cycleSeconds)
         if printOutput:
@@ -804,8 +806,11 @@ if __name__ == "__main__":
     #rows = 10 #3x6
     #columns = 31
 
-    rows = 10 #3x3
-    columns = 16
+    #rows = 10 #3x3
+    #columns = 16
+
+    rows=16 #5x15
+    columns=76
 
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
@@ -854,13 +859,15 @@ if __name__ == "__main__":
     """
 
 
-    simulation.createChargingStations([(0, 9), (15, 0)])
-    startLocations = [(0, 8), (5, 0), (10, 9), (15, 0), (5, 6)]
+    simulation.createChargingStations([(0, 9)])
+    startLocations = [(0, 8), (5, 0), (10, 9), (15, 0), (5, 6), (1, 8), (5, 2), (10, 8), (15, 1)]
     simulation.createRobots(startLocations)
 
-    firstStation = (0, 4)
-    secondStation = (15, 4)
-    locations = [firstStation, secondStation]
+    firstStation = (10, 15)
+    secondStation = (20, 15)
+    thirdStation = (30, 15)
+    fourthStation = (40, 15)
+    locations = [firstStation, secondStation, thirdStation, fourthStation]
 
     simulation.createOutputStations(locations)
 
@@ -870,7 +877,7 @@ if __name__ == "__main__":
     #simulation.Robots[1].batteryLevel = 100
 
 
-    simulation.MultiCycleVRP(96,900, printOutput=True)
+    simulation.MultiCycleVRP(32,900, printOutput=True)
 
     """
     
@@ -908,4 +915,3 @@ if __name__ == "__main__":
     simulation.env.run()
     a = 10
     """
-
