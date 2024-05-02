@@ -93,8 +93,8 @@ class RMFS_Model():
         :param locations: List of tuples
         """
         self.OutputStations = []
-        for loc in locations:
-            tempStation = OutputStation(env=self.env, location=loc)
+        for idx, loc in enumerate(locations):
+            tempStation = OutputStation(env=self.env, location=loc, outputStationID=idx)
             self.OutputStations.append(tempStation)
 
     def createChargingStations(self, locations):
@@ -456,7 +456,7 @@ class RMFS_Model():
             dflist = vrp.print_solution(data, manager, routing, solution)
             return data, manager, routing, solution, dflist
 
-    def combineItemLists(self, itemlist):
+    def combineItemListsVRP(self, itemlist):
 
         def itemListSum(array_2d):
             """
@@ -526,15 +526,32 @@ class RMFS_Model():
         return vrpTaskList, rawsimoTaskList
 
 
-    def fixedLocationRawSIMO(self, taskList, start_nodes=None, end_nodes=None, assign=True):
+    def fixedLocationRawSIMO(self, assign=True):
 
-        for task in taskList:
-            robot = task.robot
-            robot.taskList.append(task)
+        def divide_list(lst, num_groups):
+            # Calculate the size of each group
+            group_size = len(lst) // num_groups
+            remainder = len(lst) % num_groups
 
-        for robot in self.Robots:
-            self.env.process(robot.DoExtractTask(robot.taskList[0]))
-        env.run()
+            # Divide the list into groups
+            groups = []
+            start = 0
+            for i in range(num_groups):
+                group_end = start + group_size + (1 if i < remainder else 0)
+                groups.append(lst[start:group_end])
+                start = group_end
+
+            return groups
+
+        allocatedRobotsList = divide_list(self.Robots, len(self.OutputStations))
+
+        for idx, stationTaskList in enumerate(self.extractTaskList):
+            stationRobots = allocatedRobotsList[idx]
+            numRobot = len(stationRobots)
+            for taskNum, task in enumerate(stationTaskList):
+                task.robot = stationRobots[taskNum % numRobot]
+                stationRobots[taskNum % numRobot].taskList.append(task)
+
 
     def orderGenerator(self, numOrder, skuExistencethreshold=0.5, maxAmount=10):
 
@@ -660,7 +677,7 @@ class RMFS_Model():
                          [7, 10],))
 
         if cycleIdx != 0:
-            itemlist = self.combineItemLists(itemlist=itemlist)
+            itemlist = self.combineItemListsVRP(itemlist=itemlist)
 
         selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemlist, satisfiedReturn=True)
         extractTaskList = self.podSelectionHungarian(selectedPodsList, outputTask=True)
@@ -695,16 +712,88 @@ class RMFS_Model():
 
         #self.env.run(until=cycleSeconds*(cycleIdx+1))
 
-    def MultiCycleVRP(self, numCycle, cycleSeconds):
+    def MultiCycleVRP(self, numCycle, cycleSeconds, printOutput=False, allItemList = None, numOrderPerCycle=100):
 
         self.numCycle = numCycle
         self.cycleSeconds = cycleSeconds
         for cycle_idx in range(numCycle):
             self.currentCycle = cycle_idx
-            itemlist = (self.orderGenerator(numOrder=100))
+            if allItemList:
+                itemlist = allItemList[cycle_idx]
+            else:
+                itemlist = (self.orderGenerator(numOrder=numOrderPerCycle))
             self.startCycleVRP(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
             self.env.run(until=self.env.now + cycleSeconds)
+        if printOutput:
+            self.timeStatDF.to_excel('output.xlsx', index=False)
 
+
+    def podSelectionRawSIMO(self, selectedPodsList, station):
+        taskList = []
+        for pod in selectedPodsList:
+            task = ExtractTask(env=env, robot=None, outputstation=station, pod=pod)
+            taskList.append(task)
+        return taskList
+
+    def combineItemListsRawSIMO(self, itemlist):
+        pass
+
+
+    def startCycleRawSIMO(self, itemlist, cycleSeconds, cycleIdx):
+
+        if cycleIdx != 0:
+            itemlist = self.combineItemListsRawSIMO(itemlist=itemlist)
+
+        itemListDivided = np.reshape(itemlist, newshape=(len(self.OutputStations), itemlist.shape[0] // len(self.OutputStations), itemlist.shape[1]))
+
+        for stationIdx, station in enumerate(self.OutputStations):
+            itemListStation = itemListDivided[stationIdx]
+            selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemList=itemListStation, satisfiedReturn=True)
+            taskList = self.podSelectionRawSIMO(selectedPodsList=selectedPodsList, station=station)
+            self.extractTaskList.append(taskList)
+            self.satisfiedList.append(satisfiedList)
+
+
+        self.fixedLocationRawSIMO()
+
+        #self.env._queue = []
+
+        for i in range(1, cycleSeconds+1):
+            self.env.process(self.updateCharge(t=i, updateTime=1))
+
+        for i in range(0, self.cycleSeconds//60 + 1):
+            self.env.process(self.collectTimeStat(t=i))
+
+        if cycleIdx == 0:
+            for robot in self.Robots:
+                if robot.status == "charging" and robot.targetNode != robot.currentNode:
+                    robot.createPath(robot.targetNode)
+                    self.env.process(robot.move())
+                elif robot.currentTask != None:
+                    self.env.process(robot.DoExtractTask(robot.currentTask))
+                elif robot.taskList:
+                    self.env.process(robot.DoExtractTask(robot.taskList[0]))
+                else:
+                    self.env.process(robot.goRest())
+        else:
+            for robot in self.Robots:
+                if robot.status == "rest" and robot.batteryLevel > robot.MaxBattery * robot.RestRate:
+                    if robot.taskList:
+                        self.env.process(robot.DoExtractTask(robot.taskList[0]))
+
+    def MultiCycleRawSIMO(self, numCycle, cycleSeconds, printOutput=False, allItemList = None, numOrderPerCycle = 100):
+        self.numCycle = numCycle
+        self.cycleSeconds = cycleSeconds
+        for cycle_idx in range(numCycle):
+            self.currentCycle = cycle_idx
+            if allItemList:
+                itemlist = allItemList[cycle_idx]
+            else:
+                itemlist = (self.orderGenerator(numOrder=numOrderPerCycle))
+            self.startCycleRawSIMO(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
+            self.env.run(until=self.env.now + cycleSeconds)
+        if printOutput:
+            self.timeStatDF.to_excel('output.xlsx', index=False)
 
 if __name__ == "__main__":
     env = simpy.Environment()
@@ -785,7 +874,7 @@ if __name__ == "__main__":
     #simulation.Robots[1].batteryLevel = 100
 
 
-    simulation.MultiCycleVRP(96,900)
+    simulation.MultiCycleVRP(96,900, printOutput=True)
 
     """
     

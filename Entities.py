@@ -104,6 +104,7 @@ class Robot():
     def takePod(self, pod):
         if pod.status == "extractTaken" or pod.status == "storageTaken":
             raise Exception("Pod is already taken")
+            # rawsimo aynı podu 2 farklı istasyon için istemiş olabilir buraya wait yaz
         else:
             yield self.env.timeout(self.takeTime)
             pod.status = "extractTaken"
@@ -393,9 +394,10 @@ class InputStation(simpy.Resource):
         self.timeToReplenish = timeToReplenish
 
 class OutputStation(simpy.Resource):
-    def __init__(self, env, location, pickItemList=None, currentPod=None, podQueue=None, timeToPick=1):
+    def __init__(self, env, location, outputStationID, pickItemList=None, currentPod=None, podQueue=None, timeToPick=1):
         self.env = env
         self.location = location
+        self.outputStationID = outputStationID
         self.pickItemList = pickItemList
         self.currentPod = currentPod
         self.podQueue = podQueue
