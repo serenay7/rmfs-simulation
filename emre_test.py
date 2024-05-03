@@ -15,6 +15,7 @@ from ortools.constraint_solver import pywrapcp
 import networkx as nx
 import vrp
 import math
+import copy
 
 
 
@@ -41,7 +42,7 @@ class RMFS_Model():
             self.Pods.append(tempPod)
 
     def createSKUs(self):
-        s = len(self.podGraph.nodes) * 4  # Number of SKUs
+        s = len(self.podGraph.nodes) * 4  # Number of SKUs 12 for real
         self.SKUs = {}
         for id in range(s):
             tempSKU = SKU(self.env, id, 0)
@@ -584,7 +585,9 @@ class RMFS_Model():
 
     def PhaseIIExperimentOneCycle(self, numTask):
         # burayı yap
-        taskListRaw = generators.taskGenerator(network=simulation.network, numTask=numTask, numRobot=len(self.Robots))
+        randomPodsList = random.sample(self.Pods, numTask)
+
+
 
     def updateCharge(self, t, updateTime, addition=0):
 
@@ -862,6 +865,39 @@ class RMFS_Model():
         if printOutput:
             self.timeStatDF.to_excel('output.xlsx', index=False)
 
+def PhaseIAssignmentExperiment(numTask, network, OutputLocations, ChargeLocations, RobotLocations):
+
+    env1 = simpy.Environment()
+    rawsimoModel = RMFS_Model(env=env1, network=network, TaskAssignmentPolicy="rawsimo", ChargePolicy="rawsimo")
+    rawsimoModel.createPods()
+    rawsimoModel.createSKUs()
+    rawsimoModel.fillPods()
+    rawsimoModel.createRobots(RobotLocations)
+    rawsimoModel.createOutputStations(OutputLocations)
+    rawsimoModel.createChargingStations(ChargeLocations)
+    rawsimoModel.distanceMatrixCalculate()
+
+
+    env2 = simpy.Environment()
+    anomalyModel = RMFS_Model(env=env2, network=network, TaskAssignmentPolicy="vrp", ChargePolicy="pearl")
+    anomalyModel.Pods = copy.deepcopy(rawsimoModel.Pods)
+    anomalyModel.SKUs = copy.deepcopy(rawsimoModel.SKUs)
+    anomalyModel.createRobots(RobotLocations)
+    anomalyModel.createOutputStations(OutputLocations)
+    anomalyModel.createChargingStations(ChargeLocations)
+    anomalyModel.distanceMatrixCalculate()
+
+    randomPodIndexList = random.sample(range(len(rawsimoModel.Pods)), numTask)
+
+    for idx in randomPodIndexList:
+        pass
+
+
+
+    anomalyModel.extractTaskList = extractTaskListVRP
+    anomalyModel.fixedLocationVRP(extractTaskListVRP, assign=True)
+
+
 if __name__ == "__main__":
     env = simpy.Environment()
 
@@ -875,11 +911,11 @@ if __name__ == "__main__":
     #rows = 10 #3x6
     #columns = 31
 
-    #rows = 10 #3x3
-    #columns = 16
+    rows = 10 #3x3
+    columns = 16
 
-    rows=16 #5x15
-    columns=76
+    #rows=16 #5x15
+    #columns=76
 
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
