@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import pandas as pd
 import simpy
@@ -12,6 +14,7 @@ from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 import networkx as nx
 import vrp
+import math
 
 
 
@@ -27,6 +30,7 @@ class RMFS_Model():
         self.TaskAssignmentPolicy = TaskAssignmentPolicy #"rawsimo" or "vrp"
         self.ChargePolicy = ChargePolicy #"rawsimo" or "pearl"
         self.DropPodPolicy = DropPodPolicy #"fixed" or "closestTask"
+        self.timeStatDF = pd.DataFrame(columns=['time', 'robotID', 'robotStatus', 'stepsTaken', 'batteryLevel'])
 
     def createPods(self):
         podNodes = list(self.podGraph.nodes)
@@ -91,8 +95,8 @@ class RMFS_Model():
         :param locations: List of tuples
         """
         self.OutputStations = []
-        for loc in locations:
-            tempStation = OutputStation(env=self.env, location=loc)
+        for idx, loc in enumerate(locations):
+            tempStation = OutputStation(env=self.env, location=loc, outputStationID=idx)
             self.OutputStations.append(tempStation)
 
     def createChargingStations(self, locations):
@@ -109,8 +113,9 @@ class RMFS_Model():
         self.Robots = []
         self.ChargeQueue = []
         for idx, loc in enumerate(startLocations):
-            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=4.15, chargingRate=100000 ,Model=self, chargingStationList=self.ChargingStations)
+            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=41.6, chargingRate=41.6, Model=self, ChargeFlagRate=0.85, MaxChargeRate = 0.95, PearlRate = 0.4, RestRate = 0.1, chargingStationList=self.ChargingStations)
             self.Robots.append(tempRobot)
+
 
     def insertChargeQueue(self, robot):
         self.ChargeQueue.append(robot)
@@ -190,6 +195,9 @@ class RMFS_Model():
             selectedPodsList.append(selectedPod)
             satisfiedList.append(satisfiedSKU)
         if satisfiedReturn:
+            self.selectedPodsList = selectedPodsList
+            self.satisfiedList = satisfiedList
+
             return selectedPodsList, satisfiedList
 
         return selectedPodsList
@@ -320,11 +328,18 @@ class RMFS_Model():
             # ŞARJA GÖRE GÜNCELLE HER ROBOTU DÖNMEMESİ LAZIM
             if start_nodes == None:
                 for i, robot in enumerate(self.Robots):
-                    idx = list(self.network.nodes).index(robot.currentNode)
-                    node_idx.append(idx)
-                    start_idx.append(len(node_idx)-1)
+                    if robot.status != "charging" and robot.batteryLevel > robot.MaxBattery * robot.RestRate:
+                        #if robot.pod != None: idx = list(self.network.nodes).index(robot.currentTask.pod.fixedLocation)
+                        #else: idx = list(self.network.nodes).index(robot.currentNode)
+                        if robot.currentTask:
+                            idx = list(self.network.nodes).index(robot.currentTask.pod.fixedLocation)
+                        else:
+                            idx = list(self.network.nodes).index(robot.currentNode)
+                        node_idx.append(idx)
+                        start_idx.append(len(node_idx)-1)
             else:
                 for i, node in enumerate(start_nodes):
+                    #şarjdaki robotu katıyor
                     idx = list(self.network.nodes).index(node)
                     node_idx.append(idx)
                     start_idx.append(len(node_idx)-1)
@@ -346,14 +361,15 @@ class RMFS_Model():
                 vrp_matrix = np.insert(vrp_matrix, vrp_matrix.shape[0],infinity_row, axis=0)
                 vrp_matrix[-1, -1] = 0
 
-                end_idx = [len(node_idx) for i in range(len(self.Robots))] #ŞARJA GÖRE GÜNCELLE
+                end_idx = [len(node_idx) for i in range(len(start_idx))] #ŞARJA GÖRE GÜNCELLE
+
                 return vrp_matrix.astype(int), start_idx, end_idx, task_dict
 
         def create_data_model(distanceMatrix, start_index, end_index):
             """Stores the data for the problem."""
             data = {}
             data["distance_matrix"] = distanceMatrix
-            data["num_vehicles"] = len(self.Robots) #ŞARJA GÖRE GÜNCELLE
+            data["num_vehicles"] = len(start_index) #ŞARJA GÖRE GÜNCELLE
             data["starts"] = start_index
             data["ends"] = end_index
             return data
@@ -377,13 +393,19 @@ class RMFS_Model():
 
         def assignTasks(routeList, task_dict):
 
-            for idx, robot in enumerate(self.Robots):
+            idx = 0
+            for robot in self.Robots:
                 #if charge mı değil mi bak, veya rotalamada bu robot görev istedi mi direkt sıraya göre atama yapıyor
                 #sadece extract create ediyor
-                for node in routeList[idx][1:-1]:
-                    tempTask = task_dict[node]
-                    tempTask.robot = robot
-                    robot.taskList.append(tempTask)
+                robot.taskList = []
+                #if robot.pod == None: robot.currentTask = None
+
+                if robot.status != "charging" and robot.batteryLevel > robot.MaxBattery * robot.RestRate:
+                    for node in routeList[idx][1:-1]:
+                        tempTask = task_dict[node]
+                        tempTask.robot = robot
+                        robot.taskList.append(tempTask)
+                    idx += 1
 
 
         distMatrixModified, start_index, end_index, task_dict = distanceMatrixModify(taskList,start_nodes,end_nodes)
@@ -419,12 +441,24 @@ class RMFS_Model():
         distance_dimension = routing.GetDimensionOrDie(dimension_name)
         distance_dimension.SetGlobalSpanCostCoefficient(100)
 
+        count_dimension_name = 'count'
+        # assume some variable num_nodes holds the total number of nodes
+        routing.AddConstantDimension(
+            1,  # increment by one every time
+            len(self.extractTaskList) // len(self.Robots) + len(self.extractTaskList) // 4,  # max value forces equivalent # of jobs
+            True,  # set count to zero
+            count_dimension_name)
+        count_dimension = routing.GetDimensionOrDie(count_dimension_name)
+
+
         # Setting first solution heuristic.
         search_parameters = pywrapcp.DefaultRoutingSearchParameters()
         search_parameters.first_solution_strategy = (
-            routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
+            routing_enums_pb2.FirstSolutionStrategy.AUTOMATIC
         # initial solution için buradaki yöntemi kullanıyor
         )
+
+        search_parameters.time_limit.seconds = 30 #timelimit
 
         # Solve the problem.
         solution = routing.SolveWithParameters(search_parameters)
@@ -436,24 +470,54 @@ class RMFS_Model():
                 assignTasks(allRoutes, task_dict)
             dflist = vrp.print_solution(data, manager, routing, solution)
             return data, manager, routing, solution, dflist
+        else:
+            raise Exception("VRP solution not found.")
 
-    def startCycleVRP(self):
-        #generatordan itemList createle
-        newItemlist = np.array(([1, 10],
-                         [2, 10],
-                         [3, 10],
-                         [4, 10],
-                         [5, 10],
-                         [6, 10],
-                         [7, 10],))
+    def combineItemListsVRP(self, itemlist):
 
-        selectedPodsList = self.podSelectionMaxHitRate(itemlist)
-        extractTaskList = self.podSelectionHungarian(selectedPodsList, outputTask=True)
-        self.fixedLocationVRP(extractTaskList, assign=True)
+        def itemListSum(array_2d):
+            """
+            Aggregates itemList SKU-wise
+            :param array_2d:
+            :return: sums: 2d np array
+            """
+            # Extract unique values from the first column
+            unique_first_column = np.unique(array_2d[:, 0])
+
+            # Initialize an array to store the sums
+            sums = np.zeros(shape=(len(unique_first_column), 2), dtype=int)
+
+            # Iterate over the unique values in the first column
+            for i, value in enumerate(unique_first_column):
+                # Sum the second column where the first column matches the current unique value
+                sums[i, 0] = value
+                sums[i, 1] = np.sum(array_2d[array_2d[:, 0] == value, 1])
+            return sums
+
+        notDeliveredPods = []
 
         for robot in self.Robots:
-            self.env.process(robot.DoExtractTask(robot.taskList[0]))
-        env.run()
+            #if robot.pod == None and type(robot.currentTask) == ExtractTask: # vrp anında pod almaya giden robotların görevlerini silip onları da dahil etmek için
+            #    notDeliveredPods.append(robot.currentTask.pod)
+            if robot.taskList:
+                for task in robot.taskList:
+                    notDeliveredPods.append(task.pod)
+
+        tempList = []
+        for p in notDeliveredPods:
+            idx = self.selectedPodsList.index(p)
+            for sku, value in self.satisfiedList[idx].items():
+                tempList.append([sku, value])
+
+        tempArr = np.array(tempList)
+        if len(tempArr)>0:
+            itemListRaw = np.vstack((itemlist, tempArr))
+            finalItemList = itemListSum(itemListRaw)
+            return finalItemList
+        else:
+            return itemlist
+
+
 
     def taskGeneratorV2(self, numTask, forVRP=True, forRawSIMO=True):
         """
@@ -479,53 +543,324 @@ class RMFS_Model():
         return vrpTaskList, rawsimoTaskList
 
 
-    def fixedLocationRawSIMO(self, taskList, start_nodes=None, end_nodes=None, assign=True):
+    def fixedLocationRawSIMO(self, assign=True):
 
-        for task in taskList:
-            robot = task.robot
-            robot.taskList.append(task)
+        def divide_list(lst, num_groups):
+            # Calculate the size of each group
+            group_size = len(lst) // num_groups
+            remainder = len(lst) % num_groups
 
-        for robot in self.Robots:
-            self.env.process(robot.DoExtractTask(robot.taskList[0]))
-        env.run()
+            # Divide the list into groups
+            groups = []
+            start = 0
+            for i in range(num_groups):
+                group_end = start + group_size + (1 if i < remainder else 0)
+                groups.append(lst[start:group_end])
+                start = group_end
+
+            return groups
+
+        allocatedRobotsList = divide_list(self.Robots, len(self.OutputStations))
+
+        for idx, stationTaskList in enumerate(self.extractTaskList):
+            stationRobots = allocatedRobotsList[idx]
+            numRobot = len(stationRobots)
+            for taskNum, task in enumerate(stationTaskList):
+                task.robot = stationRobots[taskNum % numRobot]
+                stationRobots[taskNum % numRobot].taskList.append(task)
 
 
+    def orderGenerator(self, numOrder, skuExistencethreshold=0.5, maxAmount=10):
+
+        skus = random.sample(range(1, len(self.Pods)*4), numOrder)
+        tempList = []
+
+        for sku in skus:
+            amount = random.randint(5, 10)
+            tempList.append([sku, amount])
+
+        orders = np.array(tempList)
+        return orders
 
     def PhaseIIExperimentOneCycle(self, numTask):
         # burayı yap
         taskListRaw = generators.taskGenerator(network=simulation.network, numTask=numTask, numRobot=len(self.Robots))
 
-    def updateCharge(self, t, updateTime):
+    def updateCharge(self, t, updateTime, addition=0):
 
-        yield self.env.timeout(t*updateTime)
-        for chargingStation in self.ChargingStations:
-            if chargingStation.currentRobot != None:
-                robot = chargingStation.currentRobot
-                if robot.currentNode == chargingStation.location:
-                    robot.batteryLevel += robot.chargingRate/3600*updateTime
-                    if robot.batteryLevel >= robot.MaxBattery * robot.MaxChargeRate:
-                        newRobot = self.removeChargeQueue()
-                        all_events = []
+        yield self.env.timeout(t*updateTime+addition)
+        if self.ChargePolicy == "rawsimo":
+            for chargingStation in self.ChargingStations:
+                if chargingStation.currentRobot != None:
+                    robot = chargingStation.currentRobot
+                    if robot.currentNode == chargingStation.location:
+                        robot.batteryLevel += robot.chargingRate/3600*updateTime
+                        if robot.batteryLevel >= robot.MaxBattery * robot.MaxChargeRate:
+                            newRobot = self.removeChargeQueue()
+                            all_events = []
 
-                        if newRobot:
-                            newRobot.status = "charging"
-                            chargingStation.currentRobot = newRobot
-                            all_events.append(self.env.process(newRobot.moveToChargingStation(chargingStation)))
+                            if newRobot:
+                                newRobot.status = "charging"
+                                chargingStation.currentRobot = newRobot
+                                all_events.append(self.env.process(newRobot.moveToChargingStation(chargingStation)))
 
-                        if robot.taskList:
-                            all_events.append(self.env.process(robot.DoExtractTask(robot.taskList[0])))
-                            #yield self.env.process(robot.DoExtractTask(robot.taskList[0]))
-                        else:
-                            all_events.append(self.env.process(robot.goRest()))
-                            #yield self.env.process(robot.goRest())
+                            if robot.taskList:
+                                all_events.append(self.env.process(robot.DoExtractTask(robot.taskList[0])))
+                                #yield self.env.process(robot.DoExtractTask(robot.taskList[0]))
+                            else:
+                                all_events.append(self.env.process(robot.goRest()))
+                                #yield self.env.process(robot.goRest())
 
-                        yield AllOf(self.env, all_events)
+                            yield AllOf(self.env, all_events)
+
+        if self.ChargePolicy == "pearl":
+            for chargingStation in self.ChargingStations:
+                if chargingStation.currentRobot != None:
+                    robot = chargingStation.currentRobot
+                    if robot.currentNode == chargingStation.location:
+                        robot.batteryLevel += robot.chargingRate / 3600 * updateTime
+                        if robot.batteryLevel >= robot.MaxBattery * robot.MaxChargeRate:
+                            newRobot = self.removeChargeQueue()
+                            chargingStation.currentRobot = None
+                            robot.status = "extract"
+                            if newRobot:
+                                newRobot.status = "charging"
+                                yield self.env.process(self.pearlVRP(simultaneousEvent=newRobot.moveToChargingStation(chargingStation)))
+                                yield self.env.process(newRobot.moveToChargingStation(chargingStation))
+                            else:
+                                yield self.env.process(self.pearlVRP())
+                            if robot.taskList:
+                                yield self.env.process(robot.DoExtractTask(robot.taskList[0]))
 
 
-            # şarjı arttır ne kadar zamanda bir update yapılacaksa
-            # şarjı thresholdu geçeni istasyondan çıkar, görevine/reste yolla
-            # queuedan yeni robotu seç, özellikleri değiştir, goCharge
 
+    def pearlVRP(self, simultaneousEvent=None):
+
+        tempList = []
+        for robot in self.Robots:
+            tempList.append(robot.currentTask)
+
+        uncompletedTasks = list(filter(lambda x: x not in tempList, self.extractTaskList))
+
+        self.fixedLocationVRP(uncompletedTasks, assign=True)
+
+        """
+        self.env._queue = []
+
+        # env saati mod(cycleSeconds) ve bir sonraki cyclea olan uzaklık?
+        time = self.env.now
+        start = (self.cycleSeconds-time)%1
+
+        remaining = self.cycleSeconds-math.ceil(time)
+
+        for i in range(0, remaining + 1):
+            self.env.process(self.updateCharge(i, updateTime=1, addition=start))
+
+        if simultaneousEvent:
+            self.env.process(simultaneousEvent)
+
+        for robot in self.Robots:
+            if robot.status == "charging" or robot.batteryLevel < robot.MaxBattery * robot.RestRate:
+                continue
+            elif robot.currentTask != None:
+                self.env.process(robot.DoExtractTask(robot.currentTask))
+            else:
+                self.env.process(robot.DoExtractTask(robot.taskList[0]))
+
+        until = self.cycleSeconds * (self.currentCycle + 1)
+        #self.env.run(until=self.cycleSeconds * (self.currentCycle + 1))
+        """
+        yield self.env.timeout(0)
+
+    def plotTimeStat(self):
+        pass
+    def collectTimeStat(self,t):
+
+        yield self.env.timeout(t * 60)
+        for robot in self.Robots:
+            #new_row = {'time': self.env.now, 'robotID': robot.robotID, 'robotStatus': robot.status, 'stepsTaken':robot.stepsTaken, 'batteryLevel':robot.batteryLevel}
+            new_row = [self.env.now, robot.robotID, robot.status, robot.stepsTaken, robot.batteryLevel]
+            #self.timeStatDF = self.timeStatDF.append(new_row, ignore_index=True)
+            self.timeStatDF.loc[len(self.timeStatDF.index)] = new_row
+
+    def startCycleVRP(self, itemlist, cycleSeconds, cycleIdx):
+        #generatordan itemList createle
+        newItemlist = np.array(([1, 10],
+                         [2, 10],
+                         [3, 10],
+                         [4, 10],
+                         [5, 10],
+                         [6, 10],
+                         [7, 10],))
+
+        if cycleIdx != 0:
+            itemlist = self.combineItemListsVRP(itemlist=itemlist)
+
+        start = time.time()
+        selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemlist, satisfiedReturn=True)
+        extractTaskList = self.podSelectionHungarian(selectedPodsList, outputTask=True)
+        end = time.time()
+        print("POD SELECTION TIME: ", end-start)
+        start = time.time()
+        self.extractTaskList = extractTaskList
+        self.fixedLocationVRP(extractTaskList, assign=True)
+        end = time.time()
+        print("VRP TIME: ", end - start)
+        #self.env._queue = []
+
+        for i in range(1, cycleSeconds+1):
+            self.env.process(self.updateCharge(t=i, updateTime=1))
+
+        for i in range(0, self.cycleSeconds//60 + 1):
+            self.env.process(self.collectTimeStat(t=i))
+
+        if cycleIdx == 0:
+            for robot in self.Robots:
+                if robot.status == "charging" and robot.targetNode != robot.currentNode:
+                    robot.createPath(robot.targetNode)
+                    self.env.process(robot.move())
+                elif robot.currentTask != None:
+                    self.env.process(robot.DoExtractTask(robot.currentTask))
+                elif robot.taskList:
+                    self.env.process(robot.DoExtractTask(robot.taskList[0]))
+                else:
+                    self.env.process(robot.goRest())
+        else:
+            for robot in self.Robots:
+                if robot.status == "rest" and robot.batteryLevel > robot.MaxBattery * robot.RestRate:
+                    if robot.taskList:
+                        self.env.process(robot.DoExtractTask(robot.taskList[0]))
+
+
+        #self.env.run(until=cycleSeconds*(cycleIdx+1))
+
+    def MultiCycleVRP(self, numCycle, cycleSeconds, printOutput=False, allItemList = None, numOrderPerCycle=100):
+
+        self.numCycle = numCycle
+        self.cycleSeconds = cycleSeconds
+        for cycle_idx in range(numCycle):
+            self.currentCycle = cycle_idx
+            print("Cycle: ", cycle_idx)
+            if allItemList:
+                itemlist = allItemList[cycle_idx]
+            else:
+                itemlist = (self.orderGenerator(numOrder=numOrderPerCycle))
+            self.startCycleVRP(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
+            self.env.run(until=self.env.now + cycleSeconds)
+        if printOutput:
+            self.timeStatDF.to_excel('output.xlsx', index=False)
+            #cycle başında ve sonu üst üste gelince duplicate var
+
+
+    def podSelectionRawSIMO(self, selectedPodsList, station):
+        taskList = []
+        for pod in selectedPodsList:
+            task = ExtractTask(env=env, robot=None, outputstation=station, pod=pod)
+            taskList.append(task)
+        return taskList
+
+    def combineItemListsRawSIMO(self, itemlist):
+
+        def itemListSum(array_2d):
+            """
+            Aggregates itemList SKU-wise
+            :param array_2d:
+            :return: sums: 2d np array
+            """
+            # Extract unique values from the first column
+            unique_first_column = np.unique(array_2d[:, 0])
+
+            # Initialize an array to store the sums
+            sums = np.zeros(shape=(len(unique_first_column), 2), dtype=int)
+
+            # Iterate over the unique values in the first column
+            for i, value in enumerate(unique_first_column):
+                # Sum the second column where the first column matches the current unique value
+                sums[i, 0] = value
+                sums[i, 1] = np.sum(array_2d[array_2d[:, 0] == value, 1])
+            return sums
+
+        notDeliveredPods = []
+
+        for robot in self.Robots:
+            #if robot.pod == None and type(robot.currentTask) == ExtractTask: # vrp anında pod almaya giden robotların görevlerini silip onları da dahil etmek için
+            #    notDeliveredPods.append(robot.currentTask.pod)
+            if robot.taskList:
+                for task in robot.taskList:
+                    notDeliveredPods.append(task.pod)
+
+        tempList = []
+        for p in notDeliveredPods:
+            for idx_list, podListForStation in enumerate(self.selectedPodsList):
+                idx = podListForStation.index(p)
+                for sku, value in self.satisfiedList[idx_list][idx].items():
+                    tempList.append([sku, value])
+
+
+        tempArr = np.array(tempList)
+        if len(tempArr)>0:
+            itemListRaw = np.vstack((itemlist, tempArr))
+            finalItemList = itemListSum(itemListRaw)
+            return finalItemList
+        else:
+            return itemlist
+
+
+    def startCycleRawSIMO(self, itemlist, cycleSeconds, cycleIdx):
+
+        if cycleIdx != 0:
+            itemlist = self.combineItemListsRawSIMO(itemlist=itemlist)
+
+        itemListDivided = np.reshape(itemlist, newshape=(len(self.OutputStations), itemlist.shape[0] // len(self.OutputStations), itemlist.shape[1]))
+
+        for stationIdx, station in enumerate(self.OutputStations):
+            itemListStation = itemListDivided[stationIdx]
+            selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemList=itemListStation, satisfiedReturn=True)
+            taskList = self.podSelectionRawSIMO(selectedPodsList=selectedPodsList, station=station)
+            self.extractTaskList.append(taskList)
+            self.satisfiedList.append(satisfiedList)
+
+
+        self.fixedLocationRawSIMO()
+
+        #self.env._queue = []
+
+        for i in range(1, cycleSeconds+1):
+            self.env.process(self.updateCharge(t=i, updateTime=1))
+
+        for i in range(0, self.cycleSeconds//60 + 1):
+            self.env.process(self.collectTimeStat(t=i))
+
+        if cycleIdx == 0:
+            for robot in self.Robots:
+                if robot.status == "charging" and robot.targetNode != robot.currentNode:
+                    robot.createPath(robot.targetNode)
+                    self.env.process(robot.move())
+                elif robot.currentTask != None:
+                    self.env.process(robot.DoExtractTask(robot.currentTask))
+                elif robot.taskList:
+                    self.env.process(robot.DoExtractTask(robot.taskList[0]))
+                else:
+                    self.env.process(robot.goRest())
+        else:
+            for robot in self.Robots:
+                if robot.status == "rest" and robot.batteryLevel > robot.MaxBattery * robot.RestRate:
+                    if robot.taskList:
+                        self.env.process(robot.DoExtractTask(robot.taskList[0]))
+
+    def MultiCycleRawSIMO(self, numCycle, cycleSeconds, printOutput=False, allItemList = None, numOrderPerCycle = 100):
+        self.numCycle = numCycle
+        self.cycleSeconds = cycleSeconds
+        for cycle_idx in range(numCycle):
+            self.currentCycle = cycle_idx
+            if allItemList:
+                itemlist = allItemList[cycle_idx]
+            else:
+                itemlist = (self.orderGenerator(numOrder=numOrderPerCycle))
+            self.startCycleRawSIMO(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
+            self.env.run(until=self.env.now + cycleSeconds)
+        if printOutput:
+            self.timeStatDF.to_excel('output.xlsx', index=False)
 
 if __name__ == "__main__":
     env = simpy.Environment()
@@ -540,11 +875,16 @@ if __name__ == "__main__":
     #rows = 10 #3x6
     #columns = 31
 
-    rows = 10 #3x3
-    columns = 16
+    #rows = 10 #3x3
+    #columns = 16
+
+    rows=16 #5x15
+    columns=76
 
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+
+    #layout.draw_network_with_shelves(rectangular_network, pos)
 
     nodes = list(rectangular_network.nodes)
     simulation = RMFS_Model(env=env, network=rectangular_network)
@@ -589,17 +929,27 @@ if __name__ == "__main__":
 
 
     simulation.createChargingStations([(0, 9)])
-    startLocations = [(0, 0), (5, 0)]
+    startLocations = [(0, 8), (5, 0), (10, 9), (15, 0), (5, 6), (1, 8), (5, 2), (10, 8), (15, 1)]
     simulation.createRobots(startLocations)
 
-    firstStation = (0,4)
-    locations = [firstStation]
+    firstStation = (10, 15)
+    secondStation = (20, 15)
+    thirdStation = (30, 15)
+    fourthStation = (40, 15)
+    locations = [firstStation, secondStation, thirdStation, fourthStation]
 
     simulation.createOutputStations(locations)
 
     simulation.fillPods()
     simulation.distanceMatrixCalculate()
+    #simulation.Robots[0].batteryLevel = 10
+    #simulation.Robots[1].batteryLevel = 100
 
+
+    simulation.MultiCycleVRP(32,900, printOutput=True)
+
+    """
+    
     itemlist = np.array(([1, 10],
                          [2, 10],
                          [3, 10],
@@ -622,8 +972,8 @@ if __name__ == "__main__":
                 robot.batteryLevel += 1 #bunu 1 saniyede kaç şarj ediyorsa onunla değiştir
             print(robot.batteryLevel)
 
-    simulation.Robots[0].batteryLevel =
-    simulation.Robots[1].batteryLevel =
+    #simulation.Robots[0].batteryLevel =
+    #simulation.Robots[1].batteryLevel =
 
     for i in range(1,20):
         simulation.env.process(simulation.updateCharge(i, updateTime=1))
@@ -633,4 +983,4 @@ if __name__ == "__main__":
 
     simulation.env.run()
     a = 10
-
+    """

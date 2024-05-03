@@ -2,15 +2,17 @@ import simpy
 import networkx as nx
 import layout as layout
 from simpy.events import AllOf
+import inspect
 
 class Pod(simpy.Resource):
     def __init__(self, env, location, skuDict=None, robot=None, status=None, takeItemList=None):
         self.env = env
         self.skuDict = skuDict
-        self.location = location #(0,0), (5,5)
+        self.location = location #(0,0), (5,5) current location
         self.robot = robot
         self.status = status
         self.takeItemList = takeItemList #bu listedeki itemler ve yanlarındaki amount kadar bu poddan alınacak, OStationda bunu yapacak fonksiyon yaz
+        self.fixedLocation = location
 
         if skuDict is None:
             self.skuDict = {}
@@ -101,13 +103,14 @@ class Robot():
 
 
     def takePod(self, pod):
-        if pod.status == "taken":
+        if pod.status == "extractTaken" or pod.status == "storageTaken":
             raise Exception("Pod is already taken")
+            # rawsimo aynı podu 2 farklı istasyon için istemiş olabilir buraya wait yaz
         else:
-            pod.status = "taken"
-            pod.robot = self.robotID #burası direkt pod.robot = self olabilir
-            self.pod = pod
             yield self.env.timeout(self.takeTime)
+            pod.status = "extractTaken"
+            pod.robot = self.robotID  # burası direkt pod.robot = self olabilir
+            self.pod = pod
     """
     def dropPod(self, pod):
         
@@ -125,10 +128,11 @@ class Robot():
     """
 
     def dropPod(self, pod):
+        yield self.env.timeout(self.dropTime)
+        #print("pod dropped", self.pod.fixedLocation)
         pod.status = "idle"
         pod.robot = None
         self.pod = None
-        yield self.env.timeout(self.dropTime)
 
         if self.Model.ChargePolicy == "rawsimo":
             if self.taskList:
@@ -148,34 +152,41 @@ class Robot():
                     yield self.env.process(self.goRest())
 
     def DoExtractTask(self, extractTask):
-        PodFixedLocation = extractTask.pod.location
-        self.currentTask = extractTask
-        self.taskList.pop(0)
 
-        if self.batteryLevel < self.MaxBattery * self.RestRate:
+
+        if self.batteryLevel <= self.MaxBattery * self.RestRate and self.pod == None:
             if self.Model.ChargePolicy == "rawsimo":
                 yield self.env.process(self.selectChargingStationRawSIMO())
             elif self.Model.ChargePolicy == "pearl":
                 yield self.env.process(self.checkAndGoToChargingStation())
             return #DİKKAT
 
-        self.status = "extract"
-        self.createPath(extractTask.pod.location)
-        yield self.env.process(self.move())
-        yield self.env.process(self.takePod(extractTask.pod))
+        if self.currentTask != extractTask:
+            self.taskList.pop(0)
+        PodFixedLocation = extractTask.pod.fixedLocation
+        self.currentTask = extractTask
 
-        tempGraph = layout.create_node_added_subgraph(self.pod.location, self.network_corridors, self.network)
-        self.createPath(extractTask.outputstation.location, tempGraph=tempGraph)
-        del tempGraph
-        yield self.env.process(self.move())
+        if self.pod == None:
+            self.status = "extract"
+            self.createPath(extractTask.pod.location)
+            yield self.env.process(self.move())
+            yield self.env.process(self.takePod(extractTask.pod))
+
+        if self.pod != None:
+            if self.pod.status == "extractTaken" or self.targetNode == extractTask.outputstation.location:
+                tempGraph = layout.create_node_added_subgraph(self.currentNode, self.network_corridors, self.network)
+                self.createPath(extractTask.outputstation.location, tempGraph=tempGraph)
+                del tempGraph
+                yield self.env.process(self.move())
+                self.pod.status = "storageTaken"
         #extractTask.outputstation.currentPod = self.pod
         #extractTask.outputstation.PickedItems()
-
-        tempGraph = layout.create_node_added_subgraph(PodFixedLocation, self.network_corridors, self.network)
-        self.createPath(PodFixedLocation, tempGraph=tempGraph)
-        del tempGraph
-        yield self.env.process(self.move())
-        yield self.env.process(self.dropPod(self.pod))
+            if self.pod.status == "storageTaken": #or self.currentNode != PodFixedLocation:
+                tempGraph = layout.create_node_added_subgraph(PodFixedLocation, self.network_corridors, self.network)
+                self.createPath(PodFixedLocation, tempGraph=tempGraph)
+                del tempGraph
+                yield self.env.process(self.move())
+            yield self.env.process(self.dropPod(self.pod))
 
     def selectChargingStationRawSIMO(self):
         def manhattan_distance(point1, point2):
@@ -226,6 +237,7 @@ class Robot():
     # def getPodsCarriedCount(self): # TO COUNT HOW MANY PODS A ROBOT CARRY
     #    return self.podsCarriedCount
 
+    """
     def chargeBattery(self):
         self.chargeCycle += 1 #charge cycle direkt +1 artmasın
         self.status = "charging"
@@ -236,7 +248,7 @@ class Robot():
 
         chargeTime = 3600*(gap/self.chargingRate)
         yield self.env.timeout(chargeTime)
-
+    """
     # def moveToChargingStationAndCharge(self):
     #     # Move to the charging station location
     #     self.createPath(self.chargingStationLocation)
@@ -301,6 +313,7 @@ class Robot():
     """
 
     def checkAndGoToChargingStation(self):
+        #pearlMain
         def manhattan_distance(point1, point2):
             return abs(point1[0] - point2[0]) + abs(point1[1] - point2[1])
 
@@ -318,6 +331,8 @@ class Robot():
             for item in distList:
                 if item[1] == min_distance and not found_closest:
                     item[0].currentRobot = self
+                    self.status = "charging"
+                    yield self.env.process(self.Model.pearlVRP(simultaneousEvent=self.moveToChargingStation(item[0]))) #simultaneousEvent kısmı gereksiz olabilir test aldıktan sonra pearlVRP kontrol et
                     yield self.env.process(self.moveToChargingStation(item[0]))
                     found_closest = True
 
@@ -328,14 +343,23 @@ class Robot():
                 highest_battery_robot = max(charging_robots, key=lambda robot: robot.batteryLevel)
                 if highest_battery_robot.batteryLevel - self.batteryLevel > self.MaxBattery * self.PearlRate:
                     # Swap the robots
-                    highest_battery_robot.stopCharging()
+                    # highest_battery_robot.stopCharging()
                     highest_battery_robot.taskList = self.taskList
                     self.taskList = []
-                    all_events = [self.env.process(self.moveToChargingStation(highest_battery_robot.station))]
+
+                    stationNode = highest_battery_robot.currentNode
+                    for station in self.chargingStationList:
+                        if station.location == stationNode:
+                            currentStation = station
+
+                    all_events = [self.env.process(self.moveToChargingStation(currentStation))]
+                    self.status = "charging"
                     if highest_battery_robot.taskList:
                         all_events.append(self.env.process(highest_battery_robot.DoExtractTask(extractTask=highest_battery_robot.taskList[0])))
                     else:
                         all_events.append(highest_battery_robot.goRest())
+                    if inspect.isgenerator(self.env):
+                        a = 10
                     yield AllOf(self.env, all_events)
                 elif self.batteryLevel < self.MaxBattery * self.RestRate:
                     self.Model.insertChargeQueue(robot=self)
@@ -358,9 +382,6 @@ class Robot():
         yield self.env.timeout(0)
 
 
-
-
-
 class SKU():
     def __init__(self, env, id, totalAmount):
         self.env = env
@@ -376,9 +397,10 @@ class InputStation(simpy.Resource):
         self.timeToReplenish = timeToReplenish
 
 class OutputStation(simpy.Resource):
-    def __init__(self, env, location, pickItemList=None, currentPod=None, podQueue=None, timeToPick=1):
+    def __init__(self, env, location, outputStationID, pickItemList=None, currentPod=None, podQueue=None, timeToPick=1):
         self.env = env
         self.location = location
+        self.outputStationID = outputStationID
         self.pickItemList = pickItemList
         self.currentPod = currentPod
         self.podQueue = podQueue

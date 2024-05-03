@@ -6,5 +6,5 @@ The simulation is a **work in progress**.
 
 **Language:** Python
 
-**Libraries:** pandas, numpy, simpy, networkx, gurobi, google or tools
+**Libraries:** pandas, numpy, simpy, networkx, gurobi, google or tools, pydoe3, tkinter
 
