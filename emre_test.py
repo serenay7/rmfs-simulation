@@ -815,6 +815,7 @@ class RMFS_Model():
             itemlist = self.combineItemListsRawSIMO(itemlist=itemlist)
 
         itemListDivided = np.reshape(itemlist, newshape=(len(self.OutputStations), itemlist.shape[0] // len(self.OutputStations), itemlist.shape[1]))
+        self.extractTaskList = []
 
         for stationIdx, station in enumerate(self.OutputStations):
             itemListStation = itemListDivided[stationIdx]
@@ -923,7 +924,7 @@ if __name__ == "__main__":
     #layout.draw_network_with_shelves(rectangular_network, pos)
 
     nodes = list(rectangular_network.nodes)
-    simulation = RMFS_Model(env=env, network=rectangular_network)
+    simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="rawsimo", ChargePolicy="rawsimo")
     simulation.createPods()
     simulation.createSKUs()
     """
@@ -965,24 +966,27 @@ if __name__ == "__main__":
 
 
     simulation.createChargingStations([(0, 9)])
-    startLocations = [(0, 8), (5, 0), (10, 9), (15, 0), (5, 6), (1, 8), (5, 2), (10, 8), (15, 1)]
+    #startLocations = [(0, 8), (5, 0), (10, 9), (15, 0), (5, 6), (1, 8), (5, 2), (10, 8), (15, 1)]
+    startLocations = [(0, 8), (5, 0), (10, 9)]
     simulation.createRobots(startLocations)
 
-    firstStation = (10, 15)
-    secondStation = (20, 15)
-    thirdStation = (30, 15)
-    fourthStation = (40, 15)
-    locations = [firstStation, secondStation, thirdStation, fourthStation]
+    firstStation = (0, 5)
+    #secondStation = (20, 15)
+    #thirdStation = (30, 15)
+    #fourthStation = (40, 15)
+    locations = [firstStation]
 
     simulation.createOutputStations(locations)
 
     simulation.fillPods()
     simulation.distanceMatrixCalculate()
-    #simulation.Robots[0].batteryLevel = 10
-    #simulation.Robots[1].batteryLevel = 100
+    simulation.Robots[0].batteryLevel = 41.6
+    simulation.Robots[1].batteryLevel = 35.36
+    simulation.Robots[1].batteryLevel = 39
 
 
-    simulation.MultiCycleVRP(32,900, printOutput=True)
+    #simulation.MultiCycleVRP(32,900, printOutput=True)
+    simulation.MultiCycleRawSIMO(32,900, printOutput=True)
 
     """
     
