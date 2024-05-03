@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import pandas as pd
 import simpy
@@ -439,12 +441,24 @@ class RMFS_Model():
         distance_dimension = routing.GetDimensionOrDie(dimension_name)
         distance_dimension.SetGlobalSpanCostCoefficient(100)
 
+        count_dimension_name = 'count'
+        # assume some variable num_nodes holds the total number of nodes
+        routing.AddConstantDimension(
+            1,  # increment by one every time
+            len(self.extractTaskList) // len(self.Robots) + len(self.extractTaskList) // 4,  # max value forces equivalent # of jobs
+            True,  # set count to zero
+            count_dimension_name)
+        count_dimension = routing.GetDimensionOrDie(count_dimension_name)
+
+
         # Setting first solution heuristic.
         search_parameters = pywrapcp.DefaultRoutingSearchParameters()
         search_parameters.first_solution_strategy = (
-            routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
+            routing_enums_pb2.FirstSolutionStrategy.AUTOMATIC
         # initial solution için buradaki yöntemi kullanıyor
         )
+
+        search_parameters.time_limit.seconds = 30 #timelimit
 
         # Solve the problem.
         solution = routing.SolveWithParameters(search_parameters)
@@ -456,6 +470,8 @@ class RMFS_Model():
                 assignTasks(allRoutes, task_dict)
             dflist = vrp.print_solution(data, manager, routing, solution)
             return data, manager, routing, solution, dflist
+        else:
+            raise Exception("VRP solution not found.")
 
     def combineItemListsVRP(self, itemlist):
 
@@ -680,11 +696,16 @@ class RMFS_Model():
         if cycleIdx != 0:
             itemlist = self.combineItemListsVRP(itemlist=itemlist)
 
+        start = time.time()
         selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemlist, satisfiedReturn=True)
         extractTaskList = self.podSelectionHungarian(selectedPodsList, outputTask=True)
+        end = time.time()
+        print("POD SELECTION TIME: ", end-start)
+        start = time.time()
         self.extractTaskList = extractTaskList
         self.fixedLocationVRP(extractTaskList, assign=True)
-
+        end = time.time()
+        print("VRP TIME: ", end - start)
         #self.env._queue = []
 
         for i in range(1, cycleSeconds+1):
@@ -728,6 +749,7 @@ class RMFS_Model():
             self.env.run(until=self.env.now + cycleSeconds)
         if printOutput:
             self.timeStatDF.to_excel('output.xlsx', index=False)
+            #cycle başında ve sonu üst üste gelince duplicate var
 
 
     def podSelectionRawSIMO(self, selectedPodsList, station):
@@ -738,7 +760,50 @@ class RMFS_Model():
         return taskList
 
     def combineItemListsRawSIMO(self, itemlist):
-        pass
+
+        def itemListSum(array_2d):
+            """
+            Aggregates itemList SKU-wise
+            :param array_2d:
+            :return: sums: 2d np array
+            """
+            # Extract unique values from the first column
+            unique_first_column = np.unique(array_2d[:, 0])
+
+            # Initialize an array to store the sums
+            sums = np.zeros(shape=(len(unique_first_column), 2), dtype=int)
+
+            # Iterate over the unique values in the first column
+            for i, value in enumerate(unique_first_column):
+                # Sum the second column where the first column matches the current unique value
+                sums[i, 0] = value
+                sums[i, 1] = np.sum(array_2d[array_2d[:, 0] == value, 1])
+            return sums
+
+        notDeliveredPods = []
+
+        for robot in self.Robots:
+            #if robot.pod == None and type(robot.currentTask) == ExtractTask: # vrp anında pod almaya giden robotların görevlerini silip onları da dahil etmek için
+            #    notDeliveredPods.append(robot.currentTask.pod)
+            if robot.taskList:
+                for task in robot.taskList:
+                    notDeliveredPods.append(task.pod)
+
+        tempList = []
+        for p in notDeliveredPods:
+            for idx_list, podListForStation in enumerate(self.selectedPodsList):
+                idx = podListForStation.index(p)
+                for sku, value in self.satisfiedList[idx_list][idx].items():
+                    tempList.append([sku, value])
+
+
+        tempArr = np.array(tempList)
+        if len(tempArr)>0:
+            itemListRaw = np.vstack((itemlist, tempArr))
+            finalItemList = itemListSum(itemListRaw)
+            return finalItemList
+        else:
+            return itemlist
 
 
     def startCycleRawSIMO(self, itemlist, cycleSeconds, cycleIdx):

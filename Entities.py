@@ -2,6 +2,7 @@ import simpy
 import networkx as nx
 import layout as layout
 from simpy.events import AllOf
+import inspect
 
 class Pod(simpy.Resource):
     def __init__(self, env, location, skuDict=None, robot=None, status=None, takeItemList=None):
@@ -357,6 +358,8 @@ class Robot():
                         all_events.append(self.env.process(highest_battery_robot.DoExtractTask(extractTask=highest_battery_robot.taskList[0])))
                     else:
                         all_events.append(highest_battery_robot.goRest())
+                    if inspect.isgenerator(self.env):
+                        a = 10
                     yield AllOf(self.env, all_events)
                 elif self.batteryLevel < self.MaxBattery * self.RestRate:
                     self.Model.insertChargeQueue(robot=self)
