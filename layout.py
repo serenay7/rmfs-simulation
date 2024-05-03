@@ -1,5 +1,6 @@
 import networkx as nx
 import matplotlib.pyplot as plt
+import Entities
 
 
 def create_rectangular_network(rows, columns):
@@ -15,6 +16,8 @@ def place_shelf(network, start_pos, shelf_dimensions=(2, 4)):
             node = (start_pos[0] + r, start_pos[1] + c)
             if node in network.nodes:
                 network.nodes[node]['shelf'] = True
+                tempPod = Entities.Pod
+                network.nodes[node]['pod'] = tempPod
 
 
 def draw_network_with_shelves(G, pos):
@@ -54,6 +57,9 @@ def create_corridor_subgraph(G):
     return G.subgraph(corridor_nodes).copy()
 
 def create_node_added_subgraph(specific_node, subgraph, graph):
+    """
+    Creates a subgraph containing an additionaly specific node.
+    """
     # Create a shallow copy of the existing subgraph
     node_added_subgraph = subgraph.copy()
 
@@ -65,12 +71,12 @@ def create_node_added_subgraph(specific_node, subgraph, graph):
         if neighbor in node_added_subgraph.nodes:
             node_added_subgraph.add_edge(specific_node, neighbor)
 
-    return  node_added_subgraph
+    return node_added_subgraph
 
 if __name__ == "__main__":
     # Yeni depo ağı oluşturma ve raf yerleştirme
-    rows = 26
-    columns = 16
+    rows = 4
+    columns = 4
     rectangular_network, pos = create_rectangular_network_with_attributes(rows, columns)
     place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
     #print(rectangular_network._node)
@@ -79,6 +85,7 @@ if __name__ == "__main__":
     #print(rectangular_network[1][1]["shelf"])
     test = create_corridor_subgraph(rectangular_network)
     node_added_subgraph = create_node_added_subgraph((3,1), test, rectangular_network)
+    a = rectangular_network.nodes(data=True)
     nx.draw(node_added_subgraph, with_labels=True, node_color='skyblue', node_size=500, edge_color='gray')
 
     # Display the graph

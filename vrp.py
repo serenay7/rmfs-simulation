@@ -1,11 +1,15 @@
+import time
+
 import numpy as np
 import networkx as nx
-import koridor_deneme
+import layout
 import pandas as pd
 import ast
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 import generators
+from generators import taskGenerator
+from rawsimo import manhattan_distance_between_consecutive_rows
 
 def distanceMatrixCreate(G):
     """Takes a network as input, returns a Distance Matrix and the list of nodes."""
@@ -58,11 +62,11 @@ def taskDistanceMatrix(tasks, nodes, distanceMatrix, start_node, end_node):
 
     formatted_tasks = convert_string_tuples_to_int_tuples(tasks.tolist())
 
-    if start_node not in formatted_tasks:
-        formatted_tasks.append(start_node)
+    #if start_node not in formatted_tasks:
+    #    formatted_tasks.append(start_node)
 
-    if end_node not in formatted_tasks:
-        formatted_tasks.append(end_node)
+    #if end_node not in formatted_tasks:
+    #    formatted_tasks.append(end_node)
     
     matching_indexes = [i for i, item in enumerate(nodes) if item in formatted_tasks]
 
@@ -85,24 +89,41 @@ def create_data_model(distanceMatrix, numVehicles, start_index, end_index):
 
 def print_solution(data, manager, routing, solution):
     """Prints solution on console."""
+    output_list = [solution.ObjectiveValue()]
     print(f"Objective: {solution.ObjectiveValue()}")
     max_route_distance = 0
+    
     for vehicle_id in range(data["num_vehicles"]):
+        output_list.append(vehicle_id)
+
         index = routing.Start(vehicle_id)
         plan_output = f"Route for vehicle {vehicle_id}:\n"
         route_distance = 0
+        # route_array = np.array([index])
+        route_array = np.array([])
+
         while not routing.IsEnd(index):
+            plan = manager.IndexToNode(index)
             plan_output += f" {manager.IndexToNode(index)} -> "
             previous_index = index
             index = solution.Value(routing.NextVar(index))
             route_distance += routing.GetArcCostForVehicle(
                 previous_index, index, vehicle_id
             )
+            route_array = np.append(route_array, plan)
+
+    
+        last = manager.IndexToNode(index)
         plan_output += f"{manager.IndexToNode(index)}\n"
+        route_array = np.append(route_array, last)
+        output_list.append(route_array)
         plan_output += f"Distance of the route: {route_distance}m\n"
+        output_list.append(route_distance)
         print(plan_output)
         max_route_distance = max(route_distance, max_route_distance)
     print(f"Maximum of the route distances: {max_route_distance}m")
+    
+    return output_list
 
 
 def main(distanceMatrix, numVehicles, start_index, end_index):
@@ -149,7 +170,7 @@ def main(distanceMatrix, numVehicles, start_index, end_index):
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
+        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC #initial solution için buradaki yöntemi kullanıyor
     )
 
     # Solve the problem.
@@ -157,31 +178,115 @@ def main(distanceMatrix, numVehicles, start_index, end_index):
 
     # Print solution on console.
     if solution:
-        print_solution(data, manager, routing, solution)
+        dflist = print_solution(data, manager, routing, solution)
+        return data, manager, routing, solution, dflist
 
+def list_to_df(numVehicles, input_list):
+    # Create an empty DataFrame with n rows and 3 columns
+    df = pd.DataFrame(columns=['Vehicle No', 'Route', 'Distance'], index=range(numVehicles))
 
+    input_list = input_list[1:]
 
+    for i in range(len(input_list)):
+        if i == 0 or i % 3 == 0:
+            x = i/3
+            df.at[x, 'Vehicle No'] = input_list[i]
+
+        elif i == 1 or i % 3 == 1:
+            x = (i-1)/3
+            df.at[x, 'Route'] = input_list[i]
+        
+        elif i == 2 or i % 3 == 2:
+            x = (i-2)/3
+            df.at[x, 'Distance'] = input_list[i]
+    
+    #df.to_excel('vrp_output.xlsx', index=False)
+    return df
+    
 def solve_vrp(numVehicles, rectangular_network, stacked_arr):
     #Gerekli inputları oluşturup main'i çağırıyor
     distMatrix, nodes = distanceMatrixCreate(rectangular_network)
 
         # VRP
     start_node = (0,0)
-    end_node = (0,0)
+    nodes = list(rectangular_network.nodes)
+    end_node = nodes[-1]
 
     distMatrix_stacked, nodes_stacked = taskDistanceMatrix(stacked_arr, nodes, distMatrix, start_node, end_node)
-    start_index = get_node_index(nodes_stacked, start_node)
-    end_index = get_node_index(nodes_stacked, end_node)
+    #start_index = get_node_index(nodes_stacked, start_node)
+    #end_index = get_node_index(nodes_stacked, end_node)
     #Stacked array 2 columnlı verilebilir, columnlardan biri drop edilip kalan column 1-d array yapılacak
-    start_idx = [start_index, start_index]
-    end_idx = [start_index, start_index]
+    #start_idx = [start_index for idx in range(numVehicles)]
+    if numVehicles == 4: start_idx = [0,0,20,20]
+    #end_idx = [end_index for idx in range(numVehicles)]
+    if numVehicles == 4: end_idx = [0, 0, 20, 20]
+    start = time.time()
+    data, manager, routing, solution, dflist = main(distMatrix_stacked, numVehicles, start_idx, end_idx)
+    end = time.time()
+    print(end-start)
+    df = list_to_df(numVehicles, dflist)
 
+    return df
 
-    return main(distMatrix_stacked, numVehicles, start_idx, end_idx)
+def VRP_experiment(network, numTask, numRobot):
+    
+    tasks_and_robots = taskGenerator(network, numTask, numRobot)
+    tasks = tasks_and_robots[:, 0]
+    df = solve_vrp(numRobot, network, tasks)
+
+    return df
+
+def filter_and_calculate_distance(numVehicles, tasks):
+    distances_per_robot = []
+
+    for robot_number in range(numVehicles):
+        filtered_nodes = np.array([node[0] for node in tasks if int(node[1]) == robot_number])
+        distance = manhattan_distance_between_consecutive_rows(filtered_nodes)
+        distances_per_robot.append(distance)
+
+    df = pd.DataFrame({'robot number': range(1, numVehicles + 1), 'distance': distances_per_robot})
+
+    return df
+
+# bi fonksiyon yazıcaz
+# generatorın içinde network createleyen fonk var
+def PhaseIIExperiment(network_list, numRobot_list, numTask_list):
+
+    excel_file = 'vrp_experiment_output.xlsx'
+    excel_rawsimo_file = 'vrp_rawsimo_output.xlsx'
+
+    writer = pd.ExcelWriter(excel_file, engine='xlsxwriter')
+    writer_rawsimo = pd.ExcelWriter(excel_rawsimo_file, engine='xlsxwriter')
+
+    for idx, networkSTR in enumerate(network_list):
+        print(networkSTR)
+        dimensions = networkSTR.split("x")
+        row = int(dimensions[0])
+        column = int(dimensions[1])
+        network, network_corridors = generators.create_network(vertical=row, horizontal=column)
+        sheet_name = f'Sheet_{idx}'
+        current_network = network
+
+        current_tasklist = numTask_list[idx]
+        tasks = current_tasklist[:, 0]
+
+        current_robot = numRobot_list[idx] #numRobots
+
+        df = solve_vrp(current_robot , current_network, tasks)
+        df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+        df_rawsimo = filter_and_calculate_distance(current_robot, current_tasklist)
+        df_rawsimo.to_excel(writer_rawsimo, sheet_name=sheet_name, index=False)
+    
+    writer._save()
+    writer_rawsimo._save()
+
+    return print("Phase II experiment is over.")
 
 
 if __name__ == "__main__":
     #Test Case
+    """
     taskdf1 = pd.read_excel("2pickstation-2robot.xlsx", sheet_name="Sim2-East")
     taskdf1 = taskdf1["SimPy Location"]
     task1arr = np.unique(taskdf1.to_numpy())
@@ -192,4 +297,31 @@ if __name__ == "__main__":
     stacked_arr = np.concatenate((task1arr, task2arr))
     numVehicles = 2
     rectangular_network, network_corridors = generators.create_network(3,3)
-    solve_vrp(numVehicles, rectangular_network, stacked_arr)
+    #print("before")
+    #xdata, xmanager, xrouting, xsolution, xdf = solve_vrp(numVehicles, rectangular_network, stacked_arr)
+    #print("the end")
+    
+    tasks_and_robots = taskGenerator(rectangular_network, 5, 2)
+    tasks = tasks_and_robots[:, 0]
+    dist = filter_and_calculate_distance(2, tasks_and_robots)
+
+
+    # Write the DataFrame to an Excel file
+    # df.to_excel('output.xlsx', index=False)
+    """
+    #networkList = ["4x8", "4x8", "5x5", "5x5", "6x12", "6x12", "8x8", "8x8", "10x20", "10x20"]
+    #numRobotList = [2, 4, 2, 4, 2, 4, 2, 4, 2, 4]
+    networkList = ["4x8", "5x5", "6x12", "8x8", "10x20"]
+    numRobotList = [4, 4, 4, 4, 4]
+    taskList = []
+    for idx, network in enumerate(networkList):
+        dimensions = network.split("x")
+        row = int(dimensions[0])
+        column = int(dimensions[1])
+        network, network_corridors = generators.create_network(vertical=row, horizontal=column)
+        #task = generators.taskGenerator(network, 20, numRobotList[idx])
+        layout.place_shelves_automatically(network, shelf_dimensions=(4, 2), spacing=(1, 1))
+        task = generators.taskGenerator(network, numRobotList[idx]*10, numRobotList[idx])
+        taskList.append(task)
+
+    PhaseIIExperiment(networkList, numRobotList, taskList)
