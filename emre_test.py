@@ -32,7 +32,8 @@ class RMFS_Model():
         self.ChargePolicy = ChargePolicy #"rawsimo" or "pearl"
         self.DropPodPolicy = DropPodPolicy #"fixed" or "closestTask"
         self.timeStatDF = pd.DataFrame(columns=['time', 'robotID', 'robotStatus', 'stepsTaken', 'batteryLevel'])
-
+        self.selectedPodsList = []
+        self.satisfiedList = []
     def createPods(self):
         podNodes = list(self.podGraph.nodes)
 
@@ -160,7 +161,7 @@ class RMFS_Model():
         return max_hit_pod, satisfiedSKU, rtrItemList
 
     #DAHA ÇOK TEST YAZILIP DENENEBİLİR
-    def podSelectionMaxHitRate(self, itemList, satisfiedReturn = False):
+    def podSelectionMaxHitRate(self, itemList, satisfiedReturn = False, stationID=0):
         """
 
         :param itemList:  2d np array
@@ -196,8 +197,14 @@ class RMFS_Model():
             selectedPodsList.append(selectedPod)
             satisfiedList.append(satisfiedSKU)
         if satisfiedReturn:
-            self.selectedPodsList = selectedPodsList
-            self.satisfiedList = satisfiedList
+            if self.TaskAssignmentPolicy == "vrp" or self.TaskAssignmentPolicy == "rl":
+                self.selectedPodsList = selectedPodsList
+                self.satisfiedList = satisfiedList
+            elif self.TaskAssignmentPolicy == "rawsimo":
+                self.selectedPodsList.append(selectedPodsList)
+                self.satisfiedList.append(satisfiedList)
+            else:
+                raise Exception("Unknown TaskAssignmentPolicy")
 
             return selectedPodsList, satisfiedList
 
@@ -601,20 +608,23 @@ class RMFS_Model():
                         if robot.batteryLevel >= robot.MaxBattery * robot.MaxChargeRate:
                             newRobot = self.removeChargeQueue()
                             all_events = []
+                            chargingStation.currentRobot = None
+                            robot.status = "extract"
 
                             if newRobot:
                                 newRobot.status = "charging"
                                 chargingStation.currentRobot = newRobot
-                                all_events.append(self.env.process(newRobot.moveToChargingStation(chargingStation)))
+                                #all_events.append(self.env.process(newRobot.moveToChargingStation(chargingStation)))
+                                yield self.env.process(newRobot.moveToChargingStation(chargingStation))
 
                             if robot.taskList:
-                                all_events.append(self.env.process(robot.DoExtractTask(robot.taskList[0])))
-                                #yield self.env.process(robot.DoExtractTask(robot.taskList[0]))
+                                #all_events.append(self.env.process(robot.DoExtractTask(robot.taskList[0])))
+                                yield self.env.process(robot.DoExtractTask(robot.taskList[0]))
                             else:
-                                all_events.append(self.env.process(robot.goRest()))
-                                #yield self.env.process(robot.goRest())
+                                #all_events.append(self.env.process(robot.goRest()))
+                                yield self.env.process(robot.goRest())
 
-                            yield AllOf(self.env, all_events)
+                            #yield AllOf(self.env, all_events)
 
         if self.ChargePolicy == "pearl":
             for chargingStation in self.ChargingStations:
@@ -737,7 +747,7 @@ class RMFS_Model():
 
         #self.env.run(until=cycleSeconds*(cycleIdx+1))
 
-    def MultiCycleVRP(self, numCycle, cycleSeconds, printOutput=False, allItemList = None, numOrderPerCycle=100):
+    def MultiCycleVRP(self, numCycle, cycleSeconds, printOutput=False, allItemList = None, numOrderPerCycle=30):
 
         self.numCycle = numCycle
         self.cycleSeconds = cycleSeconds
@@ -795,10 +805,12 @@ class RMFS_Model():
         tempList = []
         for p in notDeliveredPods:
             for idx_list, podListForStation in enumerate(self.selectedPodsList):
-                idx = podListForStation.index(p)
-                for sku, value in self.satisfiedList[idx_list][idx].items():
-                    tempList.append([sku, value])
-
+                try:
+                    idx = podListForStation.index(p)
+                    for sku, value in self.satisfiedList[idx_list][idx].items():
+                        tempList.append([sku, value])
+                except:
+                    continue
 
         tempArr = np.array(tempList)
         if len(tempArr)>0:
@@ -816,6 +828,7 @@ class RMFS_Model():
 
         itemListDivided = np.reshape(itemlist, newshape=(len(self.OutputStations), itemlist.shape[0] // len(self.OutputStations), itemlist.shape[1]))
         self.extractTaskList = []
+        self.satisfiedList = []
 
         for stationIdx, station in enumerate(self.OutputStations):
             itemListStation = itemListDivided[stationIdx]
@@ -852,11 +865,13 @@ class RMFS_Model():
                     if robot.taskList:
                         self.env.process(robot.DoExtractTask(robot.taskList[0]))
 
-    def MultiCycleRawSIMO(self, numCycle, cycleSeconds, printOutput=False, allItemList = None, numOrderPerCycle = 100):
+    def MultiCycleRawSIMO(self, numCycle, cycleSeconds, printOutput=False, allItemList = None, numOrderPerCycle = 30):
+        random.seed(42)
         self.numCycle = numCycle
         self.cycleSeconds = cycleSeconds
         for cycle_idx in range(numCycle):
             self.currentCycle = cycle_idx
+            print(cycle_idx)
             if allItemList:
                 itemlist = allItemList[cycle_idx]
             else:
@@ -867,6 +882,27 @@ class RMFS_Model():
             self.timeStatDF.to_excel('output.xlsx', index=False)
 
 def PhaseIAssignmentExperiment(numTask, network, OutputLocations, ChargeLocations, RobotLocations):
+    def divide_list_into_n_sublists(lst, n):
+        # Calculate the length of each sublist
+        sublist_length = len(lst) // n
+        # Initialize the list of sublists
+        sublists = [lst[i:i + sublist_length] for i in range(0, len(lst), sublist_length)]
+        return sublists
+    def divide_list(lst, num_groups):
+        # Calculate the size of each group
+        group_size = len(lst) // num_groups
+        remainder = len(lst) % num_groups
+
+        # Divide the list into groups
+        groups = []
+        start = 0
+        for i in range(num_groups):
+            group_end = start + group_size + (1 if i < remainder else 0)
+            groups.append(lst[start:group_end])
+            start = group_end
+
+        return groups
+
 
     env1 = simpy.Environment()
     rawsimoModel = RMFS_Model(env=env1, network=network, TaskAssignmentPolicy="rawsimo", ChargePolicy="rawsimo")
@@ -890,13 +926,37 @@ def PhaseIAssignmentExperiment(numTask, network, OutputLocations, ChargeLocation
 
     randomPodIndexList = random.sample(range(len(rawsimoModel.Pods)), numTask)
 
-    for idx in randomPodIndexList:
-        pass
+    rawsimoPodList = divide_list_into_n_sublists(randomPodIndexList, len(rawsimoModel.OutputStations))
+
+
+    for stationIdx, station in enumerate(rawsimoModel.OutputStations):
+        taskList = []
+        for pod in rawsimoPodList[stationIdx]:
+            sampleTask = ExtractTask(robot=None, pod=pod, outputstation=station)
+            taskList.append(sampleTask)
+        rawsimoModel.extractTaskList.append(taskList)
+    #satisfied eklenmedi, gerek yok
+
+    allocatedRobotsList = divide_list(rawsimoModel.Robots, len(rawsimoModel.OutputStations))
+
+    for idx, stationTaskList in enumerate(rawsimoModel.extractTaskList):
+        stationRobots = allocatedRobotsList[idx]
+        numRobot = len(stationRobots)
+        for taskNum, task in enumerate(stationTaskList):
+            task.robot = stationRobots[taskNum % numRobot]
+            stationRobots[taskNum % numRobot].taskList.append(task)
 
 
 
     anomalyModel.extractTaskList = extractTaskListVRP
     anomalyModel.fixedLocationVRP(extractTaskListVRP, assign=True)
+
+    extractTaskList = self.podSelectionHungarian(selectedPodsList, outputTask=True)
+    end = time.time()
+    print("POD SELECTION TIME: ", end - start)
+    start = time.time()
+    self.extractTaskList = extractTaskList
+    self.fixedLocationVRP(extractTaskList, assign=True)
 
 
 if __name__ == "__main__":
