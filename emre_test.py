@@ -190,6 +190,8 @@ class RMFS_Model():
         itemList = itemListSum(itemList)
         selectedPodsList = []
         satisfiedList = []
+        self.selectedPodsList = []
+        self.satisfiedList = []
 
         while len(itemList) > 0:
             selectedPod, satisfiedSKU, itemList = self.podSelectionHitRateCalculation(itemList=itemList)
@@ -570,6 +572,9 @@ class RMFS_Model():
 
         allocatedRobotsList = divide_list(self.Robots, len(self.OutputStations))
 
+        for robot in self.Robots:
+            robot.taskList = []
+
         for idx, stationTaskList in enumerate(self.extractTaskList):
             stationRobots = allocatedRobotsList[idx]
             numRobot = len(stationRobots)
@@ -616,6 +621,12 @@ class RMFS_Model():
                                 chargingStation.currentRobot = newRobot
                                 #all_events.append(self.env.process(newRobot.moveToChargingStation(chargingStation)))
                                 yield self.env.process(newRobot.moveToChargingStation(chargingStation))
+                            else:
+                                for newRobot in self.Robots:
+                                    if newRobot.status == "rest":
+                                        newRobot.status = "charging"
+                                        chargingStation.currentRobot = newRobot
+                                        yield self.env.process(newRobot.moveToChargingStation(chargingStation))
 
                             if robot.taskList:
                                 #all_events.append(self.env.process(robot.DoExtractTask(robot.taskList[0])))
@@ -828,17 +839,17 @@ class RMFS_Model():
 
         itemListDivided = np.reshape(itemlist, newshape=(len(self.OutputStations), itemlist.shape[0] // len(self.OutputStations), itemlist.shape[1]))
         self.extractTaskList = []
-        self.satisfiedList = []
+
 
         for stationIdx, station in enumerate(self.OutputStations):
             itemListStation = itemListDivided[stationIdx]
             selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemList=itemListStation, satisfiedReturn=True)
             taskList = self.podSelectionRawSIMO(selectedPodsList=selectedPodsList, station=station)
             self.extractTaskList.append(taskList)
-            self.satisfiedList.append(satisfiedList)
 
 
-        self.fixedLocationRawSIMO()
+
+        self.fixedLocationRawSIMO(assign=True)
 
         #self.env._queue = []
 
@@ -1092,8 +1103,8 @@ if __name__ == "__main__":
 
     simulation.fillPods()
     simulation.distanceMatrixCalculate()
-    simulation.Robots[0].batteryLevel = 41.6
-    simulation.Robots[1].batteryLevel = 35.36
+    #simulation.Robots[0].batteryLevel = 41.6
+    #simulation.Robots[1].batteryLevel = 35.36
 
     #simulation.MultiCycleVRP(32,900, printOutput=True)
     simulation.MultiCycleRawSIMO(32,900, printOutput=True, numOrderPerCycle=200)

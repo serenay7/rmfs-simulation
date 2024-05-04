@@ -135,12 +135,13 @@ class Robot():
         pod.status = "idle"
         pod.robot = None
         self.pod = None
+        self.currentTask = None
 
 
         if self.Model.ChargePolicy == "rawsimo":
             if self.batteryLevel < self.MaxBattery * self.ChargeFlagRate:
                 yield self.env.process(self.selectChargingStationRawSIMO())
-            elif self.taskList:  # robot boşsa şarja gitsin
+            elif self.taskList:
                 yield self.env.process(self.DoExtractTask(self.taskList[0]))
             else:
                 yield self.env.process(self.goRest())
@@ -169,6 +170,7 @@ class Robot():
 
         if self.batteryLevel <= self.MaxBattery * self.RestRate and self.pod == None:
             if self.Model.ChargePolicy == "rawsimo":
+                #ölü robot demek, buraya performans metriklerde bir şey atayıp arttır
                 yield self.env.process(self.selectChargingStationRawSIMO())
             elif self.Model.ChargePolicy == "pearl":
                 yield self.env.process(self.checkAndGoToChargingStation())
@@ -211,9 +213,15 @@ class Robot():
                 tempList = [station, manhattan_distance(station.location, self.currentNode)]
                 distList.append(tempList)
 
-        if len(distList) == 0:
+        if len(distList) == 0 and self.batteryLevel <= self.MaxBattery * self.RestRate:
             self.Model.insertChargeQueue(robot=self)
             yield self.env.process(self.goRest())
+
+        elif len(distList) == 0:
+            if self.taskList:
+                yield self.env.process(self.DoExtractTask(self.taskList[0]))
+            else:
+                yield self.env.process(self.goRest())
 
         else:
             min_distance = min(distList, key=lambda x: x[1])[1]
@@ -221,6 +229,7 @@ class Robot():
             for item in distList:
                 if item[1] == min_distance and not found_closest:
                     item[0].currentRobot = self
+                    self.status = "charging"
                     yield self.env.process(self.moveToChargingStation(item[0]))
                     found_closest = True
 
