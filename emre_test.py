@@ -1030,7 +1030,7 @@ if __name__ == "__main__":
     #PhaseIAssignmentExperiment(numTask=10, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
 
     PhaseIandIICompleteExperiment(numOrderPerCycle=30, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
-    a = 10
+    #a = 10
     #layout.draw_network_with_shelves(rectangular_network, pos)
 
     nodes = list(rectangular_network.nodes)
