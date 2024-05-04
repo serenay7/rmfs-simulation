@@ -130,9 +130,21 @@ class Robot():
     def dropPod(self, pod):
         yield self.env.timeout(self.dropTime)
         #print("pod dropped", self.pod.fixedLocation)
+        if not pod:
+            a = 10
         pod.status = "idle"
         pod.robot = None
         self.pod = None
+
+        """
+                if self.Model.ChargePolicy == "rawsimo":
+                    if self.batteryLevel < self.MaxBattery * self.ChargeFlagRate:
+                        yield self.env.process(self.selectChargingStationRawSIMO())
+                    elif self.taskList:  # robot boşsa şarja gitsin
+                        yield self.env.process(self.DoExtractTask(self.taskList[0]))
+                    else:
+                        yield self.env.process(self.goRest())
+                """
 
         if self.Model.ChargePolicy == "rawsimo":
             if self.taskList:
