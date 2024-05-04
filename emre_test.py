@@ -970,14 +970,37 @@ def PhaseIAssignmentExperiment(numTask, network, OutputLocations, ChargeLocation
 
     env1.run()
     env2.run()
-    a = 10
 
-def PhaseIandIICompleteExperiment(numOrder, network, OutputLocations, ChargeLocations, RobotLocations):
+
+def PhaseIandIICompleteExperiment(numOrderPerCycle, network, OutputLocations, ChargeLocations, RobotLocations, numCycle, cycleSeconds):
     #robot sayısı outputstation katı olmalı
+    env1 = simpy.Environment()
+    rawsimoModel = RMFS_Model(env=env1, network=network, TaskAssignmentPolicy="rawsimo", ChargePolicy="rawsimo")
+    rawsimoModel.createPods()
+    rawsimoModel.createSKUs()
+    rawsimoModel.fillPods()
+    rawsimoModel.createChargingStations(ChargeLocations)
+    rawsimoModel.createRobots(RobotLocations)
+    rawsimoModel.createOutputStations(OutputLocations)
+    rawsimoModel.distanceMatrixCalculate()
 
 
+    env2 = simpy.Environment()
+    anomalyModel = RMFS_Model(env=env2, network=network, TaskAssignmentPolicy="vrp", ChargePolicy="pearl")
+    anomalyModel.Pods = copy.deepcopy(rawsimoModel.Pods)
+    anomalyModel.SKUs = copy.deepcopy(rawsimoModel.SKUs)
+    anomalyModel.createChargingStations(ChargeLocations)
+    anomalyModel.createRobots(RobotLocations)
+    anomalyModel.createOutputStations(OutputLocations)
+    anomalyModel.distanceMatrixCalculate()
 
+    allItemList = []
+    for cycle_idx in range(numCycle):
+        itemList = anomalyModel.orderGenerator(numOrder=numOrderPerCycle)
+        allItemList.append(itemList)
 
+    rawsimoModel.MultiCycleRawSIMO(numCycle=numCycle, cycleSeconds=cycleSeconds, printOutput=True, allItemList = allItemList)
+    anomalyModel.MultiCycleVRP(numCycle=numCycle, cycleSeconds=cycleSeconds, printOutput=True, allItemList=allItemList)
 
 if __name__ == "__main__":
     env = simpy.Environment()
@@ -1004,8 +1027,10 @@ if __name__ == "__main__":
     charging = [(0, 9)]
     robots = [(0, 8), (5, 0), (10, 9)]
 
-    PhaseIAssignmentExperiment(numTask=10, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
+    #PhaseIAssignmentExperiment(numTask=10, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
 
+    PhaseIandIICompleteExperiment(numOrderPerCycle=30, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
+    a = 10
     #layout.draw_network_with_shelves(rectangular_network, pos)
 
     nodes = list(rectangular_network.nodes)
