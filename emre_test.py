@@ -1094,7 +1094,6 @@ if __name__ == "__main__":
     simulation.Robots[1].batteryLevel = 35.36
     simulation.Robots[1].batteryLevel = 39
 
-
     simulation.MultiCycleVRP(32,900, printOutput=True)
     #simulation.MultiCycleRawSIMO(32,900, printOutput=True)
 
