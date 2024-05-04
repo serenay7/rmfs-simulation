@@ -866,7 +866,7 @@ class RMFS_Model():
                         self.env.process(robot.DoExtractTask(robot.taskList[0]))
 
     def MultiCycleRawSIMO(self, numCycle, cycleSeconds, printOutput=False, allItemList = None, numOrderPerCycle = 30):
-        random.seed(42)
+        #random.seed(42)
         self.numCycle = numCycle
         self.cycleSeconds = cycleSeconds
         for cycle_idx in range(numCycle):
@@ -974,7 +974,7 @@ def PhaseIAssignmentExperiment(numTask, network, OutputLocations, ChargeLocation
 
 def PhaseIandIICompleteExperiment(numOrder, network, OutputLocations, ChargeLocations, RobotLocations):
     #robot sayısı outputstation katı olmalı
-    pass
+
 
 
 
