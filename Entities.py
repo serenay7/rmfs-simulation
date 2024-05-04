@@ -84,7 +84,7 @@ class Robot():
         if self.pod != None: self.pod.location = node
 
     def move(self):
-
+        a=10
         for next_position in self.path[1:]:
             self.stepsTaken += 1  # Increment the steps counter each time the robot moves
 
@@ -136,24 +136,14 @@ class Robot():
         pod.robot = None
         self.pod = None
 
-        """
-                if self.Model.ChargePolicy == "rawsimo":
-                    if self.batteryLevel < self.MaxBattery * self.ChargeFlagRate:
-                        yield self.env.process(self.selectChargingStationRawSIMO())
-                    elif self.taskList:  # robot boşsa şarja gitsin
-                        yield self.env.process(self.DoExtractTask(self.taskList[0]))
-                    else:
-                        yield self.env.process(self.goRest())
-                """
 
         if self.Model.ChargePolicy == "rawsimo":
-            if self.taskList:
-                yield self.env.process(self.DoExtractTask(self.taskList[0]))
-            elif self.batteryLevel < self.MaxBattery * self.ChargeFlagRate: #robot boşsa şarja gitsin
+            if self.batteryLevel < self.MaxBattery * self.ChargeFlagRate:
                 yield self.env.process(self.selectChargingStationRawSIMO())
+            elif self.taskList:  # robot boşsa şarja gitsin
+                yield self.env.process(self.DoExtractTask(self.taskList[0]))
             else:
                 yield self.env.process(self.goRest())
-
         elif self.Model.ChargePolicy == "pearl":
             if self.batteryLevel <= self.MaxBattery * self.ChargeFlagRate:
                 yield self.env.process(self.checkAndGoToChargingStation())
@@ -162,6 +152,17 @@ class Robot():
                     yield self.env.process(self.DoExtractTask(self.taskList[0]))
                 else:
                     yield self.env.process(self.goRest())
+
+
+        """
+        if self.Model.ChargePolicy == "rawsimo":
+            if self.taskList:
+                yield self.env.process(self.DoExtractTask(self.taskList[0]))
+            elif self.batteryLevel < self.MaxBattery * self.ChargeFlagRate: #robot boşsa şarja gitsin
+                yield self.env.process(self.selectChargingStationRawSIMO())
+            else:
+                yield self.env.process(self.goRest())
+        """
 
     def DoExtractTask(self, extractTask):
 

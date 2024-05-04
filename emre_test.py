@@ -996,6 +996,7 @@ def PhaseIandIICompleteExperiment(numOrderPerCycle, network, OutputLocations, Ch
 
     allItemList = []
     for cycle_idx in range(numCycle):
+        a=10
         itemList = anomalyModel.orderGenerator(numOrder=numOrderPerCycle)
         allItemList.append(itemList)
 
@@ -1029,12 +1030,13 @@ if __name__ == "__main__":
 
     #PhaseIAssignmentExperiment(numTask=10, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
 
-    PhaseIandIICompleteExperiment(numOrderPerCycle=30, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
-    #a = 10
+    #PhaseIandIICompleteExperiment(numOrderPerCycle=30, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
+    a = 10
     #layout.draw_network_with_shelves(rectangular_network, pos)
 
     nodes = list(rectangular_network.nodes)
-    simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="vrp", ChargePolicy="pearl")
+    #simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="vrp", ChargePolicy="pearl")
+    simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="rawsimo", ChargePolicy="rawsimo")
     simulation.createPods()
     simulation.createSKUs()
     """
@@ -1077,7 +1079,7 @@ if __name__ == "__main__":
 
     simulation.createChargingStations([(0, 9)])
     #startLocations = [(0, 8), (5, 0), (10, 9), (15, 0), (5, 6), (1, 8), (5, 2), (10, 8), (15, 1)]
-    startLocations = [(0, 8), (5, 0), (10, 9)]
+    startLocations = [(0, 8), (5, 0)]
     simulation.createRobots(startLocations)
 
     firstStation = (0, 5)
@@ -1092,9 +1094,7 @@ if __name__ == "__main__":
     simulation.distanceMatrixCalculate()
     simulation.Robots[0].batteryLevel = 41.6
     simulation.Robots[1].batteryLevel = 35.36
-    simulation.Robots[1].batteryLevel = 39
 
-    simulation.MultiCycleVRP(32,900, printOutput=True)
-    #simulation.MultiCycleRawSIMO(32,900, printOutput=True)
-
+    #simulation.MultiCycleVRP(32,900, printOutput=True)
+    simulation.MultiCycleRawSIMO(32,900, printOutput=True, numOrderPerCycle=200)
 
