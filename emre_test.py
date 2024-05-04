@@ -909,9 +909,9 @@ def PhaseIAssignmentExperiment(numTask, network, OutputLocations, ChargeLocation
     rawsimoModel.createPods()
     rawsimoModel.createSKUs()
     rawsimoModel.fillPods()
+    rawsimoModel.createChargingStations(ChargeLocations)
     rawsimoModel.createRobots(RobotLocations)
     rawsimoModel.createOutputStations(OutputLocations)
-    rawsimoModel.createChargingStations(ChargeLocations)
     rawsimoModel.distanceMatrixCalculate()
 
 
@@ -919,20 +919,21 @@ def PhaseIAssignmentExperiment(numTask, network, OutputLocations, ChargeLocation
     anomalyModel = RMFS_Model(env=env2, network=network, TaskAssignmentPolicy="vrp", ChargePolicy="pearl")
     anomalyModel.Pods = copy.deepcopy(rawsimoModel.Pods)
     anomalyModel.SKUs = copy.deepcopy(rawsimoModel.SKUs)
+    anomalyModel.createChargingStations(ChargeLocations)
     anomalyModel.createRobots(RobotLocations)
     anomalyModel.createOutputStations(OutputLocations)
-    anomalyModel.createChargingStations(ChargeLocations)
     anomalyModel.distanceMatrixCalculate()
 
     randomPodIndexList = random.sample(range(len(rawsimoModel.Pods)), numTask)
 
     rawsimoPodList = divide_list_into_n_sublists(randomPodIndexList, len(rawsimoModel.OutputStations))
-
+    rawsimoModel.extractTaskList = []
 
     for stationIdx, station in enumerate(rawsimoModel.OutputStations):
         taskList = []
-        for pod in rawsimoPodList[stationIdx]:
-            sampleTask = ExtractTask(robot=None, pod=pod, outputstation=station)
+        for pod_idx in rawsimoPodList[stationIdx]:
+            pod = rawsimoModel.Pods[pod_idx]
+            sampleTask = ExtractTask(env=env1,robot=None, pod=pod, outputstation=station)
             taskList.append(sampleTask)
         rawsimoModel.extractTaskList.append(taskList)
     #satisfied eklenmedi, gerek yok
@@ -947,16 +948,35 @@ def PhaseIAssignmentExperiment(numTask, network, OutputLocations, ChargeLocation
             stationRobots[taskNum % numRobot].taskList.append(task)
 
 
-
+    selectedPodsList = [anomalyModel.Pods[i] for i in randomPodIndexList]
+    extractTaskListVRP = anomalyModel.podSelectionHungarian(selectedPodsList, outputTask=True)
     anomalyModel.extractTaskList = extractTaskListVRP
     anomalyModel.fixedLocationVRP(extractTaskListVRP, assign=True)
 
-    extractTaskList = self.podSelectionHungarian(selectedPodsList, outputTask=True)
-    end = time.time()
-    print("POD SELECTION TIME: ", end - start)
-    start = time.time()
-    self.extractTaskList = extractTaskList
-    self.fixedLocationVRP(extractTaskList, assign=True)
+
+    for robot in rawsimoModel.Robots:
+        if robot.taskList:
+            rawsimoModel.env.process(robot.DoExtractTask(robot.taskList[0]))
+        else:
+            rawsimoModel.env.process(robot.goRest())
+
+
+
+    for robot in anomalyModel.Robots:
+        if robot.taskList:
+            anomalyModel.env.process(robot.DoExtractTask(robot.taskList[0]))
+        else:
+            anomalyModel.env.process(robot.goRest())
+
+    env1.run()
+    env2.run()
+    a = 10
+
+def PhaseIandIICompleteExperiment(numOrder, network, OutputLocations, ChargeLocations, RobotLocations):
+    #robot sayısı outputstation katı olmalı
+    pass
+
+
 
 
 if __name__ == "__main__":
@@ -980,11 +1000,16 @@ if __name__ == "__main__":
 
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+    output = [(0, 5)]
+    charging = [(0, 9)]
+    robots = [(0, 8), (5, 0), (10, 9)]
+
+    PhaseIAssignmentExperiment(numTask=10, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
 
     #layout.draw_network_with_shelves(rectangular_network, pos)
 
     nodes = list(rectangular_network.nodes)
-    simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="rawsimo", ChargePolicy="rawsimo")
+    simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="vrp", ChargePolicy="pearl")
     simulation.createPods()
     simulation.createSKUs()
     """
@@ -1045,42 +1070,7 @@ if __name__ == "__main__":
     simulation.Robots[1].batteryLevel = 39
 
 
-    #simulation.MultiCycleVRP(32,900, printOutput=True)
-    simulation.MultiCycleRawSIMO(32,900, printOutput=True)
+    simulation.MultiCycleVRP(32,900, printOutput=True)
+    #simulation.MultiCycleRawSIMO(32,900, printOutput=True)
 
-    """
-    
-    itemlist = np.array(([1, 10],
-                         [2, 10],
-                         [3, 10],
-                         [4, 10],
-                         [5, 10],
-                         [6, 10],
-                         [7, 10],
-                         [8, 10],
-                         [9, 10],))
 
-    selectedPodsList = simulation.podSelectionMaxHitRate(itemlist)
-    extractTaskList = simulation.podSelectionHungarian(selectedPodsList, outputTask=True)
-    simulation.fixedLocationVRP(extractTaskList, assign=True)
-
-    def deneme(env, t):
-
-        yield env.timeout(t)
-        for robot in simulation.Robots:
-            if robot.status == "charging":
-                robot.batteryLevel += 1 #bunu 1 saniyede kaç şarj ediyorsa onunla değiştir
-            print(robot.batteryLevel)
-
-    #simulation.Robots[0].batteryLevel =
-    #simulation.Robots[1].batteryLevel =
-
-    for i in range(1,20):
-        simulation.env.process(simulation.updateCharge(i, updateTime=1))
-
-    for robot in simulation.Robots:
-        simulation.env.process(robot.DoExtractTask(robot.taskList[0]))
-
-    simulation.env.run()
-    a = 10
-    """
