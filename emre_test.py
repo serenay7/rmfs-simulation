@@ -107,15 +107,38 @@ class RMFS_Model():
             tempStation = ChargingStation(env=self.env, capacity=1, location=loc)
             self.ChargingStations.append(tempStation)
 
+    """
     def createRobots(self, startLocations):
-        """
+        
         Creates robots and adds to a list which is a feature of RMFS_Model class
         :param startLocations: List of tuples [(0,0), (5,0)]
-        """
+        
         self.Robots = []
         self.ChargeQueue = []
         for idx, loc in enumerate(startLocations):
             tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=41.6, chargingRate=41.6, Model=self, ChargeFlagRate=0.85, MaxChargeRate = 0.95, PearlRate = 0.4, RestRate = 0.1, chargingStationList=self.ChargingStations)
+            self.Robots.append(tempRobot)
+    """
+
+    def createRobots(self, startLocations, charging_rate=41.6, max_battery=41.6, pearl_rate=0.4, rest_rate=0.1, charge_flag_rate=0.85,
+                     max_charge_rate=0.95):
+        """
+        Creates robots and adds to a list which is a feature of RMFS_Model class
+        :param startLocations: List of tuples [(0,0), (5,0)]
+        chargingRate=41.6
+        ChargeFlagRate=0.85
+        MaxChargeRate = 0.95
+        PearlRate = 0.4
+        RestRate = 0.1,
+        robotlar max bataryayla başlıyor
+        """
+        self.Robots = []
+        self.ChargeQueue = []
+        for idx, loc in enumerate(startLocations):
+            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx,
+                              currentNode=loc, taskList=[], batteryLevel=max_battery, chargingRate=charging_rate,
+                              Model=self, ChargeFlagRate=charge_flag_rate, MaxChargeRate=max_charge_rate,
+                              PearlRate=pearl_rate, RestRate=rest_rate, chargingStationList=self.ChargingStations)
             self.Robots.append(tempRobot)
 
 
@@ -643,6 +666,7 @@ class RMFS_Model():
                                         newRobot.status = "charging"
                                         chargingStation.currentRobot = newRobot
                                         yield self.env.process(newRobot.moveToChargingStation(chargingStation))
+                                        break
 
                             if robot.taskList:
                                 #all_events.append(self.env.process(robot.DoExtractTask(robot.taskList[0])))
@@ -1089,22 +1113,22 @@ if __name__ == "__main__":
     #rows = 10 #3x6
     #columns = 31
 
-    rows = 10 #3x3
-    columns = 16
+    #rows = 10 #3x3
+    #columns = 16
 
-    #rows=16 #5x15
-    #columns=76
+    rows=16 #5x15
+    columns=76
 
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-    output = [(0, 5)]
+    output = [(5, 15), (10, 15), (20, 15), (25, 15)]
     charging = [(0, 9)]
-    robots = [(0, 8)]#, (10, 9), (0, 0)]
+    robots = [(0, 8), (10, 9), (0, 0), (0, 7),(1, 8), (1, 9), (1, 0), (1, 7), (0, 4)]
     #layout.draw_network_with_shelves(rectangular_network, pos)
 
     #PhaseIAssignmentExperiment(numTask=10, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
 
-    # PhaseIandIICompleteExperiment(numOrderPerCycle=100, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=96, cycleSeconds=900)
+    PhaseIandIICompleteExperiment(numOrderPerCycle=23, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=96, cycleSeconds=900)
     a = 15
 
 
@@ -1170,5 +1194,5 @@ if __name__ == "__main__":
     #simulation.Robots[1].batteryLevel = 35.36
 
     #simulation.MultiCycleVRP(32,900, printOutput=True, numOrderPerCycle=250)
-    simulation.MultiCycleRawSIMO(32,900, printOutput=True, numOrderPerCycle=100)
+    #simulation.MultiCycleRawSIMO(32,900, printOutput=True, numOrderPerCycle=100)
 
