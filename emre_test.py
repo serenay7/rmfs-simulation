@@ -450,11 +450,12 @@ class RMFS_Model():
         distance_dimension = routing.GetDimensionOrDie(dimension_name)
         distance_dimension.SetGlobalSpanCostCoefficient(100)
 
+
         count_dimension_name = 'count'
         # assume some variable num_nodes holds the total number of nodes
         routing.AddConstantDimension(
             1,  # increment by one every time
-            len(self.extractTaskList) // len(self.Robots) + len(self.extractTaskList) // 4,  # max value forces equivalent # of jobs
+            len(self.extractTaskList) // len(start_index) + len(self.extractTaskList) // 4,  # max value forces equivalent # of jobs
             True,  # set count to zero
             count_dimension_name)
         count_dimension = routing.GetDimensionOrDie(count_dimension_name)
@@ -746,6 +747,14 @@ class RMFS_Model():
         print("POD SELECTION TIME: ", end-start)
         start = time.time()
         self.extractTaskList = extractTaskList
+
+        passCycle = True
+        for robot in self.Robots:
+            if robot.status != "charging":
+                passCycle = False
+        if passCycle:
+            return
+
         self.fixedLocationVRP(extractTaskList, assign=True)
         end = time.time()
         print("VRP TIME: ", end - start)
@@ -1057,8 +1066,8 @@ if __name__ == "__main__":
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
     output = [(0, 5), (15, 5)]
-    charging = [(0, 9)]
-    robots = [(0, 8), (5, 0), (10, 9), (0, 0)]
+    charging = [(0, 9), (0,0)]
+    robots = [(0, 8), (5, 0)]#, (10, 9), (0, 0)]
     #layout.draw_network_with_shelves(rectangular_network, pos)
 
     #PhaseIAssignmentExperiment(numTask=10, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
