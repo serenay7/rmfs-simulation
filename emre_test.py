@@ -420,6 +420,9 @@ class RMFS_Model():
         distMatrixModified, start_index, end_index, task_dict = distanceMatrixModify(taskList,start_nodes,end_nodes)
         data = create_data_model(distMatrixModified, start_index, end_index)
 
+        if data["num_vehicles"] == 0:
+            return
+
         # Create the routing index manager.
         manager = pywrapcp.RoutingIndexManager(len(data["distance_matrix"]), data["num_vehicles"], data["starts"], data["ends"])
         # Create Routing Model.
@@ -748,12 +751,6 @@ class RMFS_Model():
         start = time.time()
         self.extractTaskList = extractTaskList
 
-        passCycle = True
-        for robot in self.Robots:
-            if robot.status != "charging":
-                passCycle = False
-        if passCycle:
-            return
 
         self.fixedLocationVRP(extractTaskList, assign=True)
         end = time.time()
