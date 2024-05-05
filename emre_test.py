@@ -481,11 +481,10 @@ class RMFS_Model():
         # assume some variable num_nodes holds the total number of nodes
         routing.AddConstantDimension(
             1,  # increment by one every time
-            len(self.extractTaskList) // len(start_index) + len(self.extractTaskList) % len(start_index),  # max value forces equivalent # of jobs
+            len(self.extractTaskList) // len(start_index) + len(start_index),  # max value forces equivalent # of jobs
             True,  # set count to zero
             count_dimension_name)
         count_dimension = routing.GetDimensionOrDie(count_dimension_name)
-
 
         # Setting first solution heuristic.
         search_parameters = pywrapcp.DefaultRoutingSearchParameters()
@@ -633,10 +632,6 @@ class RMFS_Model():
 
         orders = np.array(tempList)
         return orders
-
-    def PhaseIIExperimentOneCycle(self, numTask):
-        # burayı yap
-        randomPodsList = random.sample(self.Pods, numTask)
 
 
 
