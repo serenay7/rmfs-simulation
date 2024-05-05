@@ -1,59 +1,30 @@
-import tkinter as tk
-from tkinter import ttk
+import time
 
-app = tk.Tk()
-frame = ttk.Frame(app)
-frame.pack()
+import numpy as np
+import pandas as pd
+import simpy
+from simpy.events import AllOf
+import generators
+from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, StorageTask, SKU, ChargingStation
+import layout
+import random
+import ast
+from lp_podselection import podAndStation_combination, calculate_total_distances_for_all_requirements, min_max_diff, check_feasibility, columnMultiplication, assign_pods_to_stations
+from ortools.constraint_solver import routing_enums_pb2
+from ortools.constraint_solver import pywrapcp
+import networkx as nx
+import vrp
+import math
+import copy
 
-# Variables to hold the state of checkbuttons
-do_taguchi = tk.BooleanVar()
-pick_station_amount_taguchi = tk.BooleanVar()
-pick_station_location_taguchi = tk.BooleanVar()
-charge_station_amount_taguchi = tk.BooleanVar()
-charge_station_location_taguchi = tk.BooleanVar()
-robot_amount_taguchi = tk.BooleanVar()
-charge_flag_rate_taguchi = tk.BooleanVar()
-max_charge_rate_taguchi = tk.BooleanVar()
+rows = 10 #3x3
+columns = 16
 
-# Function to enable or disable other checkbuttons based on do_taguchi's state
-def toggle_taguchi_options():
-    if do_taguchi.get():
-        state = 'normal'
-    else:
-        state = 'disabled'
-    # Set the state of other checkbuttons
-    pick_station_amount_checkbutton.config(state=state)
-    pick_station_location_checkbutton.config(state=state)
-    charge_station_amount_checkbutton.config(state=state)
-    charge_station_location_checkbutton.config(state=state)
-    robot_amount_checkbutton.config(state=state)
-    charge_flag_rate_checkbutton.config(state=state)
-    max_charge_rate_checkbutton.config(state=state)
 
-# Checkbutton to control the experiment
-taguchi_checkbutton = ttk.Checkbutton(frame, text="Enable Taguchi Experiment", variable=do_taguchi, command=toggle_taguchi_options)
-taguchi_checkbutton.grid(row=0, column=0, sticky=tk.W)
+rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
+layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+output = [(0, 5)]
+charging = [(0, 9)]
+robots = [(0, 8), (5, 0), (10, 9)]
 
-# Other checkbuttons
-pick_station_amount_checkbutton = ttk.Checkbutton(frame, text="Pick Station Amount", variable=pick_station_amount_taguchi)
-pick_station_amount_checkbutton.grid(row=1, column=0, sticky=tk.W)
-
-pick_station_location_checkbutton = ttk.Checkbutton(frame, text="Pick Station Location", variable=pick_station_location_taguchi)
-pick_station_location_checkbutton.grid(row=2, column=0, sticky=tk.W)
-
-charge_station_amount_checkbutton = ttk.Checkbutton(frame, text="Charge Station Amount", variable=charge_station_amount_taguchi)
-charge_station_amount_checkbutton.grid(row=3, column=0, sticky=tk.W)
-
-charge_station_location_checkbutton = ttk.Checkbutton(frame, text="Charge Station Location", variable=charge_station_location_taguchi)
-charge_station_location_checkbutton.grid(row=4, column=0, sticky=tk.W)
-
-robot_amount_checkbutton = ttk.Checkbutton(frame, text="Robot Amount", variable=robot_amount_taguchi)
-robot_amount_checkbutton.grid(row=5, column=0, sticky=tk.W)
-
-charge_flag_rate_checkbutton = ttk.Checkbutton(frame, text="Charge Flag Rate", variable=charge_flag_rate_taguchi)
-charge_flag_rate_checkbutton.grid(row=6, column=0, sticky=tk.W)
-
-max_charge_rate_checkbutton = ttk.Checkbutton(frame, text="Max Charge Rate", variable=max_charge_rate_taguchi)
-max_charge_rate_checkbutton.grid(row=7, column=0, sticky=tk.W)
-
-app.mainloop()
+layout.draw_network_with_shelves(rectangular_network, pos)

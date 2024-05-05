@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 import simpy
 from emre_test import RMFS_Model
+import math
+from interface_initializer import station_location
 
 import numpy as np
 import pandas as pd
@@ -17,11 +19,14 @@ import networkx as nx
 
 
 def run_simulation():
-    print("it is running")
+    print("started")
     env = simpy.Environment()
 
-    rows = int(warehouse_horizontal_entry.get()) # 10
-    columns = int(warehouse_vertical_entry.get()) # 16
+    horizontal_ailes = int(warehouse_horizontal_entry.get())
+    vertical_ailes = int(warehouse_vertical_entry.get())
+
+    rows = (3*int(horizontal_ailes))+4 # 10
+    columns = (5*int(vertical_ailes))+6 # 16
 
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
@@ -31,23 +36,27 @@ def run_simulation():
     simulation.createPods()
     simulation.createSKUs()
 
-    simulation.createChargingStations([(0, 9)])
+    pick_station_amount = int(pick_station_amount_entry.get()) 
+    charge_station_amount = int(charge_station_amount_entry.get()) 
+    pick_station_location = pick_station_location_combo.get()
+    charge_station_location = charge_station_location_combo.get()
+
+    cycle_amount = int(cycle_amount_entry.get())
+    cycle_runtime = int(cycle_runtime_entry.get())
+
+    '''
     startLocations = [(0, 8), (5, 0), (10, 9), (15, 0), (5, 6), (1, 8), (5, 2), (10, 8), (15, 1)]
-    simulation.createRobots(startLocations)
+    simulation.createRobots(startLocations)'''
 
-    firstStation = (1, 0)
-    secondStation = (2, 0)
-    thirdStation = (3, 0)
-    fourthStation = (4, 0)
-
-    locations = [firstStation, secondStation, thirdStation, fourthStation]
-
-    simulation.createOutputStations(locations)
+    pick_locations, charge_locations = station_location(pick_station_amount, pick_station_location, charge_station_amount, charge_station_location, horizontal_ailes, vertical_ailes, columns, rows)
+    
+    simulation.createChargingStations(charge_locations)
+    simulation.createOutputStations(pick_locations)
 
     simulation.fillPods()
     simulation.distanceMatrixCalculate()
 
-    simulation.MultiCycleVRP(int(cycle_amount_entry.get()),int(cycle_runtime_entry.get()), printOutput=True)
+    simulation.MultiCycleVRP(cycle_amount,cycle_runtime, printOutput=True)
 
     result_label.config(text="Simulation started...")  # Update this based on your simulation output
 
@@ -68,51 +77,39 @@ robot_amount_taguchi = tk.BooleanVar()
 charge_flag_rate_taguchi = tk.BooleanVar()
 max_charge_rate_taguchi = tk.BooleanVar()
 
-# Register the validation command
-def is_integer_input(P):
-    """
-    Validates whether the input string is an integer.
-    P is the value of the entry if the edit is allowed.
-    """
-    if P.isdigit() or P == "":
-        return True
-    return False
-
-vcmd = (app.register(is_integer_input), '%P')
-
 # SETTINGS START
 
 ttk.Label(frame, text="Warehouse & Simulation Settings", font=('Helvetica', 12, 'bold')).grid(row=0, column=0, columnspan=2, sticky=tk.W)
 
-ttk.Label(frame, text="Vertical Aisles:").grid(row=1, column=0, sticky=tk.W) #TO BE UPDATED
+ttk.Label(frame, text="Vertical Aisles:").grid(row=1, column=0, sticky=tk.W)
 warehouse_vertical_entry = ttk.Entry(frame)
 warehouse_vertical_entry.grid(row=1, column=1)
-warehouse_vertical_entry.insert(0, "16")  # Default value
+warehouse_vertical_entry.insert(0, "2")  # Default value
 
-ttk.Label(frame, text="Horizontal Aisles:").grid(row=2, column=0, sticky=tk.W) #TO BE UPDATED
+ttk.Label(frame, text="Horizontal Aisles:").grid(row=2, column=0, sticky=tk.W)
 warehouse_horizontal_entry = ttk.Entry(frame)
 warehouse_horizontal_entry.grid(row=2, column=1)
-warehouse_horizontal_entry.insert(0, "10")  # Default value
+warehouse_horizontal_entry.insert(0, "2")  # Default value
 
 ttk.Label(frame, text="Pick Station Amount:").grid(row=3, column=0, sticky=tk.W)
 pick_station_amount_entry = ttk.Entry(frame)
 pick_station_amount_entry.grid(row=3, column=1)
-pick_station_amount_entry.insert(0, "2")  # Default value
+pick_station_amount_entry.insert(0, "1")  # Default value
 
 ttk.Label(frame, text="Pick Station Location:").grid(row=4, column=0, sticky=tk.W)
 pick_station_location_combo = ttk.Combobox(frame, values=["TOP", "BOTTOM", "LEFT", "RIGHT"])
 pick_station_location_combo.grid(row=4, column=1)
 pick_station_location_combo.set("TOP")  # Default value
 
-ttk.Label(frame, text="Charge Station Amount:").grid(row=5, column=0, sticky=tk.W)
+ttk.Label(frame, text="Charge Station Amount:").grid(row=5, column=0, sticky=tk.W) # DISCUSS
 charge_station_amount_entry = ttk.Entry(frame)
 charge_station_amount_entry.grid(row=5, column=1)
 charge_station_amount_entry.insert(0, "1")  # Default value
 
-ttk.Label(frame, text="Charge Station Location:").grid(row=6, column=0, sticky=tk.W)
+ttk.Label(frame, text="Charge Station Location:").grid(row=6, column=0, sticky=tk.W) # DISCUSS
 charge_station_location_combo = ttk.Combobox(frame, values=["TOP", "BOTTOM", "LEFT", "RIGHT"])
 charge_station_location_combo.grid(row=6, column=1)
-charge_station_location_combo.set("DOWN")
+charge_station_location_combo.set("BOTTOM")
 
 ttk.Label(frame, text="Cycle Runtime (sec):").grid(row=7, column=0, sticky=tk.W)
 cycle_runtime_entry = ttk.Entry(frame)
@@ -122,7 +119,7 @@ cycle_runtime_entry.insert(0, "900")
 ttk.Label(frame, text="Cycle Amount:").grid(row=8, column=0, sticky=tk.W)
 cycle_amount_entry = ttk.Entry(frame)
 cycle_amount_entry.grid(row=8, column=1)
-cycle_amount_entry.insert(0, "1000")
+cycle_amount_entry.insert(0, "1")
 
 ttk.Label(frame, text="").grid(row=9, column=0, columnspan=2)
 ttk.Label(frame, text="Robot Settings", font=('Helvetica', 12, 'bold')).grid(row=10, column=0, columnspan=2, sticky=tk.W)
