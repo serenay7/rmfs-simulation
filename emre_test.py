@@ -190,8 +190,7 @@ class RMFS_Model():
         itemList = itemListSum(itemList)
         selectedPodsList = []
         satisfiedList = []
-        self.selectedPodsList = []
-        self.satisfiedList = []
+
 
         while len(itemList) > 0:
             selectedPod, satisfiedSKU, itemList = self.podSelectionHitRateCalculation(itemList=itemList)
@@ -696,6 +695,26 @@ class RMFS_Model():
         """
         yield self.env.timeout(0)
 
+    def addCollectedSKUCount(self):
+        if self.TaskAssignmentPolicy == "vrp" or self.TaskAssignmentPolicy == "rl":
+            uncompletedTasks = []
+            for robot in self.Robots:
+                uncompletedTasks.extend(robot.taskList)
+            completedTasks = [task for task in self.extractTaskList if task not in uncompletedTasks]
+
+            for task in completedTasks:
+                idx = self.selectedPodsList.index(task.pod)
+                takenItems = self.satisfiedList[idx]
+                task.outputstation.totalPickedCount += sum(takenItems.values())
+
+        elif self.TaskAssignmentPolicy == "rawsimo":
+            uncompletedTasks = []
+            for robot in self.Robots:
+                uncompletedTasks.extend(robot.taskList)
+
+
+
+
     def plotTimeStat(self):
         pass
     def collectTimeStat(self,t):
@@ -772,7 +791,7 @@ class RMFS_Model():
             self.startCycleVRP(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
             self.env.run(until=self.env.now + cycleSeconds)
         if printOutput:
-            self.timeStatDF.to_excel('output.xlsx', index=False)
+            self.timeStatDF.to_excel('outputVRP.xlsx', index=False)
             #cycle başında ve sonu üst üste gelince duplicate var
 
 
@@ -837,9 +856,12 @@ class RMFS_Model():
         if cycleIdx != 0:
             itemlist = self.combineItemListsRawSIMO(itemlist=itemlist)
 
-        itemListDivided = np.reshape(itemlist, newshape=(len(self.OutputStations), itemlist.shape[0] // len(self.OutputStations), itemlist.shape[1]))
+        #itemListDivided = np.reshape(itemlist, newshape=(len(self.OutputStations), itemlist.shape[0] // len(self.OutputStations), itemlist.shape[1]))
+        n = len(self.OutputStations)
+        itemListDivided = [itemlist[i * n:(i + 1) * n] for i in range((len(itemlist) + n - 1) // n)]
         self.extractTaskList = []
-
+        self.selectedPodsList = []
+        self.satisfiedList = []
 
         for stationIdx, station in enumerate(self.OutputStations):
             itemListStation = itemListDivided[stationIdx]
@@ -890,7 +912,7 @@ class RMFS_Model():
             self.startCycleRawSIMO(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
             self.env.run(until=self.env.now + cycleSeconds)
         if printOutput:
-            self.timeStatDF.to_excel('output.xlsx', index=False)
+            self.timeStatDF.to_excel('outputRAWSIMO.xlsx', index=False)
 
 def PhaseIAssignmentExperiment(numTask, network, OutputLocations, ChargeLocations, RobotLocations):
     def divide_list_into_n_sublists(lst, n):
@@ -1007,7 +1029,6 @@ def PhaseIandIICompleteExperiment(numOrderPerCycle, network, OutputLocations, Ch
 
     allItemList = []
     for cycle_idx in range(numCycle):
-        a=10
         itemList = anomalyModel.orderGenerator(numOrder=numOrderPerCycle)
         allItemList.append(itemList)
 
@@ -1035,19 +1056,20 @@ if __name__ == "__main__":
 
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-    output = [(0, 5)]
+    output = [(0, 5), (15, 5)]
     charging = [(0, 9)]
-    robots = [(0, 8), (5, 0), (10, 9)]
+    robots = [(0, 8), (5, 0), (10, 9), (0, 0)]
+    #layout.draw_network_with_shelves(rectangular_network, pos)
 
     #PhaseIAssignmentExperiment(numTask=10, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
 
-    #PhaseIandIICompleteExperiment(numOrderPerCycle=30, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
+    PhaseIandIICompleteExperiment(numOrderPerCycle=30, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
     a = 10
-    #layout.draw_network_with_shelves(rectangular_network, pos)
+
 
     nodes = list(rectangular_network.nodes)
-    #simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="vrp", ChargePolicy="pearl")
-    simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="rawsimo", ChargePolicy="rawsimo")
+    simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="vrp", ChargePolicy="pearl")
+    #simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="rawsimo", ChargePolicy="rawsimo")
     simulation.createPods()
     simulation.createSKUs()
     """
@@ -1106,6 +1128,6 @@ if __name__ == "__main__":
     #simulation.Robots[0].batteryLevel = 41.6
     #simulation.Robots[1].batteryLevel = 35.36
 
-    #simulation.MultiCycleVRP(32,900, printOutput=True)
-    simulation.MultiCycleRawSIMO(32,900, printOutput=True, numOrderPerCycle=200)
+    simulation.MultiCycleVRP(32,900, printOutput=True, numOrderPerCycle=250)
+    #simulation.MultiCycleRawSIMO(32,900, printOutput=True, numOrderPerCycle=250)
 

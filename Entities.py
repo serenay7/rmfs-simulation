@@ -104,7 +104,12 @@ class Robot():
 
     def takePod(self, pod):
         if pod.status == "extractTaken" or pod.status == "storageTaken":
-            raise Exception("Pod is already taken")
+            #self.taskList.append(self.currentTask)
+            #yield self.env.process(self.DoExtractTask(self.taskList[0]))
+            #raise Exception("Pod is already taken")
+            yield self.env.timeout(10)
+            yield self.env.process(self.takePod(pod=pod))
+
             # rawsimo aynı podu 2 farklı istasyon için istemiş olabilir buraya wait yaz
         else:
             yield self.env.timeout(self.takeTime)
@@ -427,6 +432,7 @@ class OutputStation(simpy.Resource):
         self.currentPod = currentPod
         self.podQueue = podQueue
         self.timeToPick = timeToPick
+        self.totalPickedCount = 0
 
     def PickedItems(self):
         # self.pickItemsCount += 1 # UPH için istatistik tutucu
