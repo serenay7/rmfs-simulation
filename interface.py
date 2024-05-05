@@ -54,8 +54,6 @@ def run_simulation():
     max_charge_rate = float(max_charge_rate_entry.get())
 
     startLocations = robot_location(pick_station_location, charge_station_location, columns, rows, robot_amount)
-    
-    simulation.createRobots(startLocations, charging_rate, max_battery, pearl_rate, rest_rate, charge_flag_rate, max_charge_rate)
 
     pick_locations, charge_locations = station_location(pick_station_amount, pick_station_location, charge_station_amount, charge_station_location, horizontal_ailes, vertical_ailes, columns, rows)
     
@@ -64,6 +62,8 @@ def run_simulation():
 
     simulation.fillPods()
     simulation.distanceMatrixCalculate()
+
+    simulation.createRobots(startLocations, charging_rate, max_battery, pearl_rate, rest_rate, charge_flag_rate, max_charge_rate)
 
     simulation.MultiCycleVRP(cycle_amount,cycle_runtime, printOutput=True)
 
