@@ -1,2 +1,5 @@
 output.png
 .DS_Store
+/__pycache__
+__pycache__/koridor_deneme.cpython-312.pyc
+*.pyc
