@@ -278,7 +278,7 @@ class RMFS_Model():
     def PhaseIExperiment(self, orderList, max_percentage=0.5, returnSelected=False):
 
         # Assignment by Hungarian Method Part
-        selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemlist,satisfiedReturn=True)
+        selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(orderList,satisfiedReturn=True)
         PS_distance, PS_combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance = self.podSelectionHungarian(selectedPodsList, max_percentage)
         numSelectedPodsP1 = len(selectedPodsList)
 
@@ -295,8 +295,9 @@ class RMFS_Model():
         selectedPodsListRawsimo = []
         for stationIdx, station in enumerate(self.OutputStations):
             stationLocation = station.location
-            itemListDivided = np.sum(orderListDivided[stationIdx], axis=0)
-            itemListDivided = [[sku, int(amount)] for sku, amount in enumerate(itemListDivided)]
+            #itemListDivided = np.sum(orderListDivided[stationIdx], axis=0)
+            itemListDivided = orderListDivided[stationIdx]
+            #itemListDivided = [[sku, int(amount)] for sku, amount in enumerate(itemListDivided)]
             tempList = self.podSelectionMaxHitRate(itemListDivided)
 
             selectedPodsListRawsimo.extend(tempList)
@@ -1123,7 +1124,7 @@ if __name__ == "__main__":
 
     #PhaseIAssignmentExperiment(numTask=10, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
 
-    PhaseIandIICompleteExperiment(numOrderPerCycle=23, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=96, cycleSeconds=900)
+    #PhaseIandIICompleteExperiment(numOrderPerCycle=23, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=96, cycleSeconds=900)
     a = 15
 
 
@@ -1132,6 +1133,9 @@ if __name__ == "__main__":
     simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="rawsimo", ChargePolicy="rawsimo")
     simulation.createPods()
     simulation.createSKUs()
+
+
+
     """
     startLocations = [(0,0), (0,9)]
     simulation.createRobots(startLocations)
@@ -1176,15 +1180,19 @@ if __name__ == "__main__":
     simulation.createRobots(startLocations)
 
     firstStation = (0, 5)
-    #secondStation = (20, 15)
-    #thirdStation = (30, 15)
-    #fourthStation = (40, 15)
-    locations = [firstStation]
+    secondStation = (20, 15)
+    thirdStation = (30, 15)
+    fourthStation = (40, 15)
+    locations = [firstStation, secondStation]
 
     simulation.createOutputStations(locations)
 
     simulation.fillPods()
     simulation.distanceMatrixCalculate()
+
+    orderlist = simulation.orderGenerator(80)
+    selectedPodsList, numSelectedPodsP1, total_distance, selectedPodsListRawsimo, numSelectedPodsRawsimo, totalDistRawsimo = simulation.PhaseIExperiment(orderList=orderlist, returnSelected=True)
+    a = 10
     #simulation.Robots[0].batteryLevel = 41.6
     #simulation.Robots[1].batteryLevel = 35.36
 
