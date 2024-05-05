@@ -131,3 +131,63 @@ def station_location(pick_station_amount, pick_station_location, charge_station_
                     charge_locations.append((columns-1, charge_interval * i))
 
     return pick_locations, charge_locations
+
+def robot_location(pick_station_location, charge_station_location, columns, rows, robot_amount):
+    arr_name = ["TOP", "BOTTOM", "LEFT", "RIGHT"]
+    robot_locations = []
+
+    if columns > rows:
+        arr = [4, 3, 2, 1]
+    elif columns == rows:
+        arr = [4, 3, 2, 1]
+    elif columns < rows:
+        arr = [2, 1, 4, 3]
+
+
+    if pick_station_location == "TOP":
+        arr[0] = 0
+    
+    elif pick_station_location == "BOTTOM":
+        arr[1] = 0
+    
+    elif pick_station_location == "LEFT":
+        arr[2] = 0
+    
+    elif pick_station_location == "RIGHT":
+        arr[3] = 0
+
+
+    if charge_station_location == "TOP":
+        arr[0] = 0
+    
+    elif charge_station_location == "BOTTOM":
+        arr[1] = 0
+    
+    elif charge_station_location == "LEFT":
+        arr[2] = 0
+    
+    elif charge_station_location == "RIGHT":
+        arr[3] = 0
+
+    max_value = max(arr)
+    max_index = arr.index(max_value)
+    robot_initial_location = arr_name[max_index]
+
+
+    if robot_initial_location == "TOP":
+        for i in range(1, robot_amount + 1):
+            robot_locations.append((i, rows - 1))
+    
+    elif robot_initial_location == "BOTTOM":
+        for i in range(1, robot_amount + 1):
+            robot_locations.append((i, 0))
+    
+    elif robot_initial_location == "LEFT":
+        for i in range(1, robot_amount + 1):
+            robot_locations.append((0, i))
+
+    elif robot_initial_location == "RIGHT":
+        for i in range(1, robot_amount + 1):
+            robot_locations.append((columns-1, i))
+
+    return robot_locations

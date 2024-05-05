@@ -3,7 +3,7 @@ from tkinter import ttk
 import simpy
 from emre_test import RMFS_Model
 import math
-from interface_initializer import station_location
+from interface_initializer import station_location, robot_location
 
 import numpy as np
 import pandas as pd
@@ -44,9 +44,18 @@ def run_simulation():
     cycle_amount = int(cycle_amount_entry.get())
     cycle_runtime = int(cycle_runtime_entry.get())
 
-    '''
-    startLocations = [(0, 8), (5, 0), (10, 9), (15, 0), (5, 6), (1, 8), (5, 2), (10, 8), (15, 1)]
-    simulation.createRobots(startLocations)'''
+    robot_amount = int(robot_amount_entry.get())
+
+    charging_rate = float(charging_rate_entry.get())
+    max_battery = float(maximum_battery_entry.get())
+    pearl_rate = float(pearl_rate_entry.get())
+    rest_rate = float(rest_rate_entry.get())
+    charge_flag_rate = float(charge_flag_rate_entry.get())
+    max_charge_rate = float(max_charge_rate_entry.get())
+
+    startLocations = robot_location(pick_station_location, charge_station_location, columns, rows, robot_amount)
+    
+    simulation.createRobots(startLocations, charging_rate, max_battery, pearl_rate, rest_rate, charge_flag_rate, max_charge_rate)
 
     pick_locations, charge_locations = station_location(pick_station_amount, pick_station_location, charge_station_amount, charge_station_location, horizontal_ailes, vertical_ailes, columns, rows)
     
@@ -101,12 +110,12 @@ pick_station_location_combo = ttk.Combobox(frame, values=["TOP", "BOTTOM", "LEFT
 pick_station_location_combo.grid(row=4, column=1)
 pick_station_location_combo.set("TOP")  # Default value
 
-ttk.Label(frame, text="Charge Station Amount:").grid(row=5, column=0, sticky=tk.W) # DISCUSS
+ttk.Label(frame, text="Charge Station Amount:").grid(row=5, column=0, sticky=tk.W)
 charge_station_amount_entry = ttk.Entry(frame)
 charge_station_amount_entry.grid(row=5, column=1)
 charge_station_amount_entry.insert(0, "1")  # Default value
 
-ttk.Label(frame, text="Charge Station Location:").grid(row=6, column=0, sticky=tk.W) # DISCUSS
+ttk.Label(frame, text="Charge Station Location:").grid(row=6, column=0, sticky=tk.W)
 charge_station_location_combo = ttk.Combobox(frame, values=["TOP", "BOTTOM", "LEFT", "RIGHT"])
 charge_station_location_combo.grid(row=6, column=1)
 charge_station_location_combo.set("BOTTOM")
@@ -129,6 +138,7 @@ robot_amount_entry = ttk.Entry(frame)
 robot_amount_entry.grid(row=11, column=1)
 robot_amount_entry.insert(0, "2")
 
+'''
 ttk.Label(frame, text="Loaded Speed (m/s):").grid(row=12, column=0, sticky=tk.W)
 loaded_speed_entry = ttk.Entry(frame)
 loaded_speed_entry.grid(row=12, column=1)
@@ -157,7 +167,7 @@ loaded_battery_consumption_entry.insert(0, "14.53265")
 ttk.Label(frame, text="Empty Battery Consumption (Ah):").grid(row=17, column=0, sticky=tk.W)
 empty_battery_consumption_entry = ttk.Entry(frame)
 empty_battery_consumption_entry.grid(row=17, column=1)
-empty_battery_consumption_entry.insert(0, "11.9566")
+empty_battery_consumption_entry.insert(0, "11.9566")'''
 
 ttk.Label(frame, text="Charging Rate (Ah):").grid(row=18, column=0, sticky=tk.W)
 charging_rate_entry = ttk.Entry(frame)
