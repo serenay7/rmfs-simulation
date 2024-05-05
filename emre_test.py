@@ -585,7 +585,7 @@ class RMFS_Model():
                 task.robot = stationRobots[taskNum % numRobot]
                 stationRobots[taskNum % numRobot].taskList.append(task)
 
-
+    """
     def orderGenerator(self, numOrder, skuExistencethreshold=0.5, maxAmount=10):
 
         skus = random.sample(range(1, len(self.Pods)*4), numOrder)
@@ -593,6 +593,19 @@ class RMFS_Model():
 
         for sku in skus:
             amount = random.randint(5, 10)
+            tempList.append([sku, amount])
+
+        orders = np.array(tempList)
+        return orders
+    """
+
+    def orderGenerator(self, numOrder=23, skuExistenceThreshold=0.5, mean=6, std=2):
+        orderCount = np.random.poisson(lam=numOrder, size=1)[0]
+        skus = random.sample(range(1, len(self.Pods) * 4), orderCount)
+        tempList = []
+
+        for sku in skus:
+            amount = max(1, int(random.normalvariate(mean, std)))
             tempList.append([sku, amount])
 
         orders = np.array(tempList)
@@ -859,12 +872,34 @@ class RMFS_Model():
 
     def startCycleRawSIMO(self, itemlist, cycleSeconds, cycleIdx):
 
+        def divide_list_into_equal_sublists(lst, num_sublists):
+            # Calculate the size of each sublist
+            sublist_size = len(lst) // num_sublists
+            # Calculate the number of remaining elements
+            remaining = len(lst) % num_sublists
+            # Initialize the start index for slicing
+            start = 0
+            # Initialize the list of sublists
+            sublists = []
+
+            # Divide the list into sublists
+            for _ in range(num_sublists):
+                # Calculate the end index for slicing
+                end = start + sublist_size + (1 if remaining > 0 else 0)
+                # Append the sublist to the list of sublists
+                sublists.append(lst[start:end])
+                # Update the start index for the next sublist
+                start = end
+                # Decrement the remaining elements
+                remaining -= 1
+            return sublists
+
         if cycleIdx != 0:
             itemlist = self.combineItemListsRawSIMO(itemlist=itemlist)
 
         #itemListDivided = np.reshape(itemlist, newshape=(len(self.OutputStations), itemlist.shape[0] // len(self.OutputStations), itemlist.shape[1]))
         n = len(self.OutputStations)
-        itemListDivided = [itemlist[i * n:(i + 1) * n] for i in range((len(itemlist) + n - 1) // n)]
+        itemListDivided = divide_list_into_equal_sublists(lst=itemlist, num_sublists=n)
         self.extractTaskList = []
         self.selectedPodsList = []
         self.satisfiedList = []
@@ -1062,20 +1097,20 @@ if __name__ == "__main__":
 
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-    output = [(0, 5), (15, 5)]
-    charging = [(0, 9), (0,0)]
-    robots = [(0, 8), (5, 0)]#, (10, 9), (0, 0)]
+    output = [(0, 5)]
+    charging = [(0, 9)]
+    robots = [(0, 8)]#, (10, 9), (0, 0)]
     #layout.draw_network_with_shelves(rectangular_network, pos)
 
     #PhaseIAssignmentExperiment(numTask=10, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
 
-    PhaseIandIICompleteExperiment(numOrderPerCycle=30, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
+    # PhaseIandIICompleteExperiment(numOrderPerCycle=100, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=96, cycleSeconds=900)
     a = 15
 
 
     nodes = list(rectangular_network.nodes)
-    simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="vrp", ChargePolicy="pearl")
-    #simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="rawsimo", ChargePolicy="rawsimo")
+    #simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="vrp", ChargePolicy="pearl")
+    simulation = RMFS_Model(env=env, network=rectangular_network, TaskAssignmentPolicy="rawsimo", ChargePolicy="rawsimo")
     simulation.createPods()
     simulation.createSKUs()
     """
@@ -1118,7 +1153,7 @@ if __name__ == "__main__":
 
     simulation.createChargingStations([(0, 9)])
     #startLocations = [(0, 8), (5, 0), (10, 9), (15, 0), (5, 6), (1, 8), (5, 2), (10, 8), (15, 1)]
-    startLocations = [(0, 8), (5, 0)]
+    startLocations = [(0, 8)]
     simulation.createRobots(startLocations)
 
     firstStation = (0, 5)
@@ -1134,6 +1169,6 @@ if __name__ == "__main__":
     #simulation.Robots[0].batteryLevel = 41.6
     #simulation.Robots[1].batteryLevel = 35.36
 
-    simulation.MultiCycleVRP(32,900, printOutput=True, numOrderPerCycle=250)
-    #simulation.MultiCycleRawSIMO(32,900, printOutput=True, numOrderPerCycle=250)
+    #simulation.MultiCycleVRP(32,900, printOutput=True, numOrderPerCycle=250)
+    simulation.MultiCycleRawSIMO(32,900, printOutput=True, numOrderPerCycle=100)
 
