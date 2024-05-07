@@ -21,28 +21,34 @@ import networkx as nx
 def run_simulation():
     print("started")
 
-    # taguchi booleans
-    pick_station_amount_tg = int(pick_station_amount_taguchi.get())
-    pick_station_location_tg = int(pick_station_location_taguchi.get())
-    charge_station_amount_tg = int(charge_station_amount_taguchi.get())
-    charge_station_location_tg = int(charge_station_location_taguchi.get())
-    robot_amount_tg = int(robot_amount_taguchi.get())
-    charge_flag_rate_tg = int(charge_flag_rate_taguchi.get())
-    max_charge_rate_tg = int(max_charge_rate_taguchi.get())
+    do_tg= int(do_taguchi.get())
 
-    # taguchi levels
-    pick_station_amount_tg_lvl = 2 #tbu
-    pick_station_location_tg_lvl = 4
-    charge_station_amount_tg_lvl = 2 #tbu
-    charge_station_location_tg_lvl = 4
-    robot_amount_tg_lvl = 2 #tbu
-    charge_flag_rate_tg_lvl = 2 #tbu
-    max_charge_rate_tg_lvl = 2 #tbu
+    do_pick_station_amount = int(pick_station_amount_taguchi.get())
+    do_charge_station_amount = int(charge_station_amount_taguchi.get())
+    do_robot_amount = int(robot_amount_taguchi.get())
+    do_charge_flag_rate = int(charge_flag_rate_taguchi.get())
+    do_max_charge_rate = int(max_charge_rate_taguchi.get())
 
-    tg_levels = [pick_station_amount_tg_lvl, pick_station_location_tg_lvl, charge_station_amount_tg_lvl, charge_station_location_tg_lvl, robot_amount_tg_lvl, charge_flag_rate_tg_lvl, max_charge_rate_tg_lvl]
+    parameter_count = do_pick_station_amount + do_charge_station_amount + do_robot_amount + do_charge_flag_rate + do_max_charge_rate
 
-    tg_experiment = fullfact(tg_levels)
-    print(tg_experiment)
+    param1 = 'A'
+    param2 = 'AB'
+    param3 = 'I ABC'
+    param4 = 'I ABCD'
+    param5 = 'I ABCDE'
+
+    if parameter_count==1:
+        experiment = fracfact(param1)
+    elif parameter_count==2:
+        experiment = fracfact(param2)
+    elif parameter_count==3:
+        experiment = fracfact(param3)
+    elif parameter_count==4:
+        experiment = fracfact(param4)
+    elif parameter_count==5:
+        experiment = fracfact(param5)
+    
+    print(experiment)
 
     # inputs
     horizontal_ailes = int(warehouse_horizontal_entry.get())
@@ -61,14 +67,8 @@ def run_simulation():
     charge_flag_rate = float(charge_flag_rate_entry.get())
     max_charge_rate = float(max_charge_rate_entry.get())
 
-    # is taguchi enabled?
-    if pick_station_amount_tg==1 or pick_station_location_tg==1 or charge_station_amount_tg==1 or charge_station_location_tg==1 or robot_amount_tg==1 or charge_flag_rate_tg==1 or max_charge_rate_tg==1:
-        enable_taguchi = 1
-    else:
-        enable_taguchi = 0
-
     # no taguchi, single run
-    if enable_taguchi==0: 
+    if do_tg==0: 
         env = simpy.Environment()
 
         rows = (3*int(horizontal_ailes))+4 # 10
@@ -95,7 +95,7 @@ def run_simulation():
 
         simulation.MultiCycleVRP(cycle_amount,cycle_runtime, printOutput=True)
     
-    elif enable_taguchi==1:
+    elif do_tg==1:
         print("taguchi is working")
 
     result_label.config(text="Simulation started...")  # Update this based on your simulation output
@@ -236,22 +236,48 @@ max_charge_rate_entry.insert(0, "0.85")
 ttk.Label(frame, text="").grid(row=26, column=0, columnspan=2)
 ttk.Label(frame, text="Taguchi Experiment Frame", font=('Helvetica', 12, 'bold')).grid(row=27, column=0, columnspan=2, sticky=tk.W)
 
-# ttk.Checkbutton(frame, text="Enable Taguchi Experiment", variable=do_taguchi).grid(row=28, column=0, sticky=tk.W)
+ttk.Checkbutton(frame, text="Enable Taguchi Experiment", variable=do_taguchi).grid(row=28, column=0, sticky=tk.W)
 
 ttk.Checkbutton(frame, text="Pick Station Amount", variable=pick_station_amount_taguchi).grid(row=29, column=0, sticky=tk.W)
-ttk.Checkbutton(frame, text="Pick Station Location", variable=pick_station_location_taguchi).grid(row=30, column=0, sticky=tk.W)
+ttk.Label(frame, text="Pick Station Amount 2:").grid(row=30, column=0, sticky=tk.W)
+pick_station_amount2_entry = ttk.Entry(frame)
+pick_station_amount2_entry.grid(row=30, column=1)
+pick_station_amount2_entry.insert(0, "2")  # Default value
+
+# ttk.Checkbutton(frame, text="Pick Station Location", variable=pick_station_location_taguchi).grid(row=30, column=0, sticky=tk.W)
+
 ttk.Checkbutton(frame, text="Charge Station Amount", variable=charge_station_amount_taguchi).grid(row=31, column=0, sticky=tk.W)
-ttk.Checkbutton(frame, text="Charge Station Location", variable=charge_station_location_taguchi).grid(row=32, column=0, sticky=tk.W)
+ttk.Label(frame, text="Charge Station Amount 2:").grid(row=32, column=0, sticky=tk.W)
+charge_station_amount2_entry = ttk.Entry(frame)
+charge_station_amount2_entry.grid(row=32, column=1)
+charge_station_amount2_entry.insert(0, "2")  # Default value
+
+# ttk.Checkbutton(frame, text="Charge Station Location", variable=charge_station_location_taguchi).grid(row=32, column=0, sticky=tk.W)
+
 ttk.Checkbutton(frame, text="Robot Amount", variable=robot_amount_taguchi).grid(row=33, column=0, sticky=tk.W)
-ttk.Checkbutton(frame, text="Charge Flag Rate", variable=charge_flag_rate_taguchi).grid(row=34, column=0, sticky=tk.W)
-ttk.Checkbutton(frame, text="Max Charge Rate", variable=max_charge_rate_taguchi).grid(row=35, column=0, sticky=tk.W)
+ttk.Label(frame, text="Robot Amount 2:").grid(row=34, column=0, sticky=tk.W)
+robot_amount2_entry = ttk.Entry(frame)
+robot_amount2_entry.grid(row=34, column=1)
+robot_amount2_entry.insert(0, "3")
+
+ttk.Checkbutton(frame, text="Charge Flag Rate", variable=charge_flag_rate_taguchi).grid(row=35, column=0, sticky=tk.W)
+ttk.Label(frame, text="Charge Flag Rate 2:").grid(row=36, column=0, sticky=tk.W) #TO BE UPDATED
+charge_flag_rate2_entry = ttk.Entry(frame)
+charge_flag_rate2_entry.grid(row=36, column=1)
+charge_flag_rate2_entry.insert(0, "0.9")
+
+ttk.Checkbutton(frame, text="Max Charge Rate", variable=max_charge_rate_taguchi).grid(row=37, column=0, sticky=tk.W)
+ttk.Label(frame, text="Max Charge Rate 2:").grid(row=38, column=0, sticky=tk.W) #TO BE UPDATED
+max_charge_rate2_entry = ttk.Entry(frame)
+max_charge_rate2_entry.grid(row=38, column=1)
+max_charge_rate2_entry.insert(0, "0.95")
 
 # Simulation button
 run_button = ttk.Button(frame, text="Run Simulation", command=run_simulation)
-run_button.grid(row=36, column=0, columnspan=2)
+run_button.grid(row=40, column=0, columnspan=2)
 
 # Result label
 result_label = ttk.Label(frame, text="")
-result_label.grid(row=37, column=0, columnspan=2)
+result_label.grid(row=41, column=0, columnspan=2)
 
 app.mainloop()
