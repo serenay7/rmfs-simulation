@@ -2,8 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 import simpy
 from emre_test import RMFS_Model
-import math
 from interface_initializer import station_location, robot_location
+from pyDOE3 import *
 
 import numpy as np
 import pandas as pd
@@ -20,32 +20,40 @@ import networkx as nx
 
 def run_simulation():
     print("started")
-    env = simpy.Environment()
 
+    # taguchi booleans
+    pick_station_amount_tg = int(pick_station_amount_taguchi.get())
+    pick_station_location_tg = int(pick_station_location_taguchi.get())
+    charge_station_amount_tg = int(charge_station_amount_taguchi.get())
+    charge_station_location_tg = int(charge_station_location_taguchi.get())
+    robot_amount_tg = int(robot_amount_taguchi.get())
+    charge_flag_rate_tg = int(charge_flag_rate_taguchi.get())
+    max_charge_rate_tg = int(max_charge_rate_taguchi.get())
+
+    # taguchi levels
+    pick_station_amount_tg_lvl = 2 #tbu
+    pick_station_location_tg_lvl = 4
+    charge_station_amount_tg_lvl = 2 #tbu
+    charge_station_location_tg_lvl = 4
+    robot_amount_tg_lvl = 2 #tbu
+    charge_flag_rate_tg_lvl = 2 #tbu
+    max_charge_rate_tg_lvl = 2 #tbu
+
+    tg_levels = [pick_station_amount_tg_lvl, pick_station_location_tg_lvl, charge_station_amount_tg_lvl, charge_station_location_tg_lvl, robot_amount_tg_lvl, charge_flag_rate_tg_lvl, max_charge_rate_tg_lvl]
+
+    tg_experiment = fullfact(tg_levels)
+    print(tg_experiment)
+
+    # inputs
     horizontal_ailes = int(warehouse_horizontal_entry.get())
     vertical_ailes = int(warehouse_vertical_entry.get())
-
-    rows = (3*int(horizontal_ailes))+4 # 10
-    columns = (5*int(vertical_ailes))+6 # 16
-
-    rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
-    layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-
-    nodes = list(rectangular_network.nodes)
-    simulation = RMFS_Model(env=env, network=rectangular_network)
-    simulation.createPods()
-    simulation.createSKUs()
-
     pick_station_amount = int(pick_station_amount_entry.get()) 
     charge_station_amount = int(charge_station_amount_entry.get()) 
     pick_station_location = pick_station_location_combo.get()
     charge_station_location = charge_station_location_combo.get()
-
     cycle_amount = int(cycle_amount_entry.get())
     cycle_runtime = int(cycle_runtime_entry.get())
-
     robot_amount = int(robot_amount_entry.get())
-
     charging_rate = float(charging_rate_entry.get())
     max_battery = float(maximum_battery_entry.get())
     pearl_rate = float(pearl_rate_entry.get())
@@ -53,19 +61,42 @@ def run_simulation():
     charge_flag_rate = float(charge_flag_rate_entry.get())
     max_charge_rate = float(max_charge_rate_entry.get())
 
-    startLocations = robot_location(pick_station_location, charge_station_location, columns, rows, robot_amount)
+    # is taguchi enabled?
+    if pick_station_amount_tg==1 or pick_station_location_tg==1 or charge_station_amount_tg==1 or charge_station_location_tg==1 or robot_amount_tg==1 or charge_flag_rate_tg==1 or max_charge_rate_tg==1:
+        enable_taguchi = 1
+    else:
+        enable_taguchi = 0
 
-    pick_locations, charge_locations = station_location(pick_station_amount, pick_station_location, charge_station_amount, charge_station_location, horizontal_ailes, vertical_ailes, columns, rows)
+    # no taguchi, single run
+    if enable_taguchi==0: 
+        env = simpy.Environment()
+
+        rows = (3*int(horizontal_ailes))+4 # 10
+        columns = (5*int(vertical_ailes))+6 # 16
+
+        rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
+        layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+
+        nodes = list(rectangular_network.nodes)
+        simulation = RMFS_Model(env=env, network=rectangular_network)
+        simulation.createPods()
+        simulation.createSKUs()
+
+        startLocations = robot_location(pick_station_location, charge_station_location, columns, rows, robot_amount)
+        pick_locations, charge_locations = station_location(pick_station_amount, pick_station_location, charge_station_amount, charge_station_location, horizontal_ailes, vertical_ailes, columns, rows)
+        
+        simulation.createChargingStations(charge_locations)
+        simulation.createOutputStations(pick_locations)
+
+        simulation.fillPods()
+        simulation.distanceMatrixCalculate()
+
+        simulation.createRobots(startLocations, charging_rate, max_battery, pearl_rate, rest_rate, charge_flag_rate, max_charge_rate)
+
+        simulation.MultiCycleVRP(cycle_amount,cycle_runtime, printOutput=True)
     
-    simulation.createChargingStations(charge_locations)
-    simulation.createOutputStations(pick_locations)
-
-    simulation.fillPods()
-    simulation.distanceMatrixCalculate()
-
-    simulation.createRobots(startLocations, charging_rate, max_battery, pearl_rate, rest_rate, charge_flag_rate, max_charge_rate)
-
-    simulation.MultiCycleVRP(cycle_amount,cycle_runtime, printOutput=True)
+    elif enable_taguchi==1:
+        print("taguchi is working")
 
     result_label.config(text="Simulation started...")  # Update this based on your simulation output
 
@@ -205,7 +236,7 @@ max_charge_rate_entry.insert(0, "0.85")
 ttk.Label(frame, text="").grid(row=26, column=0, columnspan=2)
 ttk.Label(frame, text="Taguchi Experiment Frame", font=('Helvetica', 12, 'bold')).grid(row=27, column=0, columnspan=2, sticky=tk.W)
 
-ttk.Checkbutton(frame, text="Enable Taguchi Experiment", variable=do_taguchi).grid(row=28, column=0, sticky=tk.W)
+# ttk.Checkbutton(frame, text="Enable Taguchi Experiment", variable=do_taguchi).grid(row=28, column=0, sticky=tk.W)
 
 ttk.Checkbutton(frame, text="Pick Station Amount", variable=pick_station_amount_taguchi).grid(row=29, column=0, sticky=tk.W)
 ttk.Checkbutton(frame, text="Pick Station Location", variable=pick_station_location_taguchi).grid(row=30, column=0, sticky=tk.W)
