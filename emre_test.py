@@ -989,7 +989,7 @@ class RMFS_Model():
         if printOutput:
             self.timeStatDF.to_excel('outputRAWSIMO.xlsx', index=False)
 
-def PhaseIAssignmentExperiment(numTask, network, OutputLocations, ChargeLocations, RobotLocations):
+def PhaseITaskAssignmentExperiment(numTask, network, OutputLocations, ChargeLocations, RobotLocations):
     def divide_list_into_n_sublists(lst, n):
         # Calculate the length of each sublist
         sublist_length = len(lst) // n
@@ -1079,6 +1079,20 @@ def PhaseIAssignmentExperiment(numTask, network, OutputLocations, ChargeLocation
     env1.run()
     env2.run()
 
+    RawsimoDist = 0
+    AnomalyDist = 0
+
+
+    for robot in rawsimoModel.Robots:
+        RawsimoDist += robot.stepsTaken
+
+    for robot in anomalyModel.Robots:
+        AnomalyDist += robot.stepsTaken
+
+    print("Rawsimo task assignment steps taken: ", RawsimoDist)
+    print("VRP task assignment steps taken: ", AnomalyDist)
+
+
 
 def PhaseIandIICompleteExperiment(numOrderPerCycle, network, OutputLocations, ChargeLocations, RobotLocations, numCycle, cycleSeconds):
     #robot sayısı outputstation katı olmalı
@@ -1136,10 +1150,17 @@ if __name__ == "__main__":
     robots = [(0, 8), (10, 9), (0, 0), (0, 7),(1, 8), (1, 9), (1, 0), (1, 7), (0, 4)]
     #layout.draw_network_with_shelves(rectangular_network, pos)
 
-    #PhaseIAssignmentExperiment(numTask=10, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
 
-    PhaseIandIICompleteExperiment(numOrderPerCycle=23, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
+
+
+    # Rawsimo task assignment vs VRP aynı podları ikisine de veriyor, bir cycledaki toplam alınan mesafeyi veriyor
+    PhaseITaskAssignmentExperiment(numTask=30, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
+
+    # Aynı orderları her cycleda veriyor ve her şeyi karşılaştırıyor; pod seçimi, task assignment ve şarj politikası
+    # PhaseIandIICompleteExperiment(numOrderPerCycle=23, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
     a = 15
+
+
 
 
     nodes = list(rectangular_network.nodes)
@@ -1149,43 +1170,6 @@ if __name__ == "__main__":
     simulation.createSKUs()
 
 
-
-    """
-    startLocations = [(0,0), (0,9)]
-    simulation.createRobots(startLocations)
-
-    firstStation = (nodes[0][0], (nodes[0][1] + nodes[-1][1]) // 2)
-    secondStation = (nodes[-1][0], (nodes[0][1] + nodes[-1][1]) // 2)
-    locations = [firstStation, secondStation]
-
-    simulation.createOutputStations(locations)
-    simulation.fillPods()
-    simulation.distanceMatrixCalculate()
-
-    taskListVRP, taskListRawSIMO = simulation.taskGeneratorV2(4)
-    simulation.fixedLocationRawSIMO(taskListRawSIMO)
-
-
-    itemlist = np.array(([1, 10],
-                         [2, 10],
-                         [3, 10],
-                         [4, 10],
-                         [5, 10],
-                         [6, 10],
-                         [7, 10],))
-
-    selectedPodsList = simulation.podSelectionMaxHitRate(itemlist)
-    extractTaskList = simulation.podSelectionHungarian(selectedPodsList, outputTask=True)
-    simulation.fixedLocationVRP(extractTaskList, assign=True)
-
-    for robot in simulation.Robots:
-        simulation.env.process(robot.DoExtractTask(robot.taskList[0]))
-        #simulation.env.process(robot.DoStorageTask())
-
-    #simulation.env.run(until=10)
-    #simulation.env.run(until=15)
-    simulation.env.run()
-    """
 
 
     simulation.createChargingStations([(0, 9)])
@@ -1205,8 +1189,11 @@ if __name__ == "__main__":
     simulation.distanceMatrixCalculate()
 
     orderlist = simulation.orderGenerator(80)
+    # Phase I pod selection karşılaştırması
     selectedPodsList, numSelectedPodsP1, total_distance, selectedPodsListRawsimo, numSelectedPodsRawsimo, totalDistRawsimo = simulation.PhaseIExperiment(orderList=orderlist, returnSelected=True)
     a = 10
+
+
     #simulation.Robots[0].batteryLevel = 41.6
     #simulation.Robots[1].batteryLevel = 35.36
 
