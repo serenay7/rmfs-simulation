@@ -333,6 +333,7 @@ class RMFS_Model():
         return distance_matrix, nodes
 
     def fixedLocationVRP(self, taskList, start_nodes=None, end_nodes=None, assign=True):
+        print("TIME: ", self.env.now)
         """
 
         :param taskList: List that contains ExtractTask objects
@@ -658,7 +659,7 @@ class RMFS_Model():
                                 yield self.env.process(newRobot.moveToChargingStation(chargingStation))
                             else:
                                 for newRobot in self.Robots:
-                                    if newRobot.status == "rest":
+                                    if newRobot.status == "rest" and newRobot.batteryLevel < newRobot.MaxBattery * newRobot.ChargeFlagRate:
                                         newRobot.status = "charging"
                                         chargingStation.currentRobot = newRobot
                                         yield self.env.process(newRobot.moveToChargingStation(chargingStation))
@@ -700,9 +701,13 @@ class RMFS_Model():
         for robot in self.Robots:
             tempList.append(robot.currentTask)
 
-        uncompletedTasks = list(filter(lambda x: x not in tempList, self.extractTaskList))
+        remainingTasks = []
+        #uncompletedTasks = list(filter(lambda x: x not in tempList, self.extractTaskList))
+        for robot in self.Robots:
+            if robot.taskList:
+                remainingTasks.extend(robot.taskList)
 
-        self.fixedLocationVRP(uncompletedTasks, assign=True)
+        self.fixedLocationVRP(remainingTasks, assign=True)
 
         """
         self.env._queue = []
@@ -827,6 +832,9 @@ class RMFS_Model():
                 itemlist = allItemList[cycle_idx]
             else:
                 itemlist = (self.orderGenerator(numOrder=numOrderPerCycle))
+            for robot in self.Robots:
+                if robot.taskList:
+                    a = 10
             self.startCycleVRP(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
             self.env.run(until=self.env.now + cycleSeconds)
         if printOutput:
@@ -970,6 +978,10 @@ class RMFS_Model():
                 itemlist = allItemList[cycle_idx]
             else:
                 itemlist = (self.orderGenerator(numOrder=numOrderPerCycle))
+
+            for robot in self.Robots:
+                if robot.taskList:
+                    a = 10
             self.startCycleRawSIMO(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
             self.env.run(until=self.env.now + cycleSeconds)
         if printOutput:
@@ -1124,7 +1136,7 @@ if __name__ == "__main__":
 
     #PhaseIAssignmentExperiment(numTask=10, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
 
-    #PhaseIandIICompleteExperiment(numOrderPerCycle=23, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=96, cycleSeconds=900)
+    PhaseIandIICompleteExperiment(numOrderPerCycle=23, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
     a = 15
 
 
