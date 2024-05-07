@@ -692,6 +692,8 @@ class RMFS_Model():
                                 yield self.env.process(self.pearlVRP())
                             if robot.taskList:
                                 yield self.env.process(robot.DoExtractTask(robot.taskList[0]))
+                            else:
+                                yield self.env.process(robot.goRest())
 
 
 
