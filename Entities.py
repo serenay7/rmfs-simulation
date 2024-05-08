@@ -54,6 +54,8 @@ class Robot():
         self.stepsTaken = 0  # Initialize the steps counter, for total distance calculation
         self.batteryLevel = batteryLevel
         self.chargeCycle = 0
+        self.chargeCount = 0
+        self.replaceCount = 0
         self.moveLoaded = moveLoaded
         self.moveEmpty = moveEmpty
         self.chargingRate = chargingRate
@@ -381,6 +383,7 @@ class Robot():
 
                     all_events = [self.env.process(self.moveToChargingStation(currentStation))]
                     self.status = "charging"
+                    self.replaceCount += 1
                     if highest_battery_robot.taskList:
                         all_events.append(self.env.process(highest_battery_robot.DoExtractTask(extractTask=highest_battery_robot.taskList[0])))
                     else:
@@ -397,7 +400,7 @@ class Robot():
                     yield self.env.process(self.goRest())
 
     def moveToChargingStation(self, chargingStation):
-
+        self.chargeCount += 1
         chargingStation.currentRobot = self
         self.createPath(chargingStation.location)
         yield self.env.process(self.move())

@@ -31,7 +31,7 @@ class RMFS_Model():
         self.TaskAssignmentPolicy = TaskAssignmentPolicy #"rawsimo" or "vrp"
         self.ChargePolicy = ChargePolicy #"rawsimo" or "pearl"
         self.DropPodPolicy = DropPodPolicy #"fixed" or "closestTask"
-        self.timeStatDF = pd.DataFrame(columns=['time', 'robotID', 'robotStatus', 'stepsTaken', 'batteryLevel'])
+        self.timeStatDF = pd.DataFrame(columns=['time', 'robotID', 'robotStatus', 'stepsTaken', 'batteryLevel', 'remainingTasks', 'completedTasks'])
         self.selectedPodsList = []
         self.satisfiedList = []
     def createPods(self):
@@ -756,29 +756,80 @@ class RMFS_Model():
             for robot in self.Robots:
                 uncompletedTasks.extend(robot.taskList)
 
+            fullTaskList = []
+            for lst in self.extractTaskList:
+                fullTaskList.extend(lst)
+
+            completedTasks = [task for task in fullTaskList if task not in uncompletedTasks]
+
+            allSelectedPods = []
+            allSatisfiedSKUs = []
+            for idx, station in enumerate(self.OutputStations):
+                allSelectedPods.extend(self.selectedPodsList[idx])
+                allSatisfiedSKUs.extend(self.satisfiedList[idx])
 
 
+            for task in completedTasks:
+                idx = allSelectedPods.index(task.pod)
+                takenItems = allSatisfiedSKUs[idx]
+                task.outputstation.totalPickedCount += sum(takenItems.values())
+
+    def calculateObservationStat(self):
+        df = pd.DataFrame(columns=["Statistics", "Value"])
+        for outputStation in self.OutputStations:
+            feature = "Station" + str(outputStation.outputStationID) + "TotalCollect"
+            new_row = {'Statistics': feature, 'Value': outputStation.totalPickedCount}
+            df.loc[len(df)] = new_row
+
+        for robot in self.Robots:
+            feature = "Robot" + str(robot.robotID) + "NumberOfCharge"
+            new_row = {'Statistics': feature, 'Value': robot.chargeCount}
+            df.loc[len(df)] = new_row
+
+        for robot in self.Robots:
+            feature = "Robot" + str(robot.robotID) + "NumberOfReplace"
+            new_row = {'Statistics': feature, 'Value': robot.replaceCount}
+            df.loc[len(df)] = new_row
+
+        return df
 
     def plotTimeStat(self):
         pass
-    def collectTimeStat(self,t):
+    def collectTimeStat(self, t, cycleSeconds):
 
         yield self.env.timeout(t * 60)
         for robot in self.Robots:
             #new_row = {'time': self.env.now, 'robotID': robot.robotID, 'robotStatus': robot.status, 'stepsTaken':robot.stepsTaken, 'batteryLevel':robot.batteryLevel}
-            new_row = [self.env.now, robot.robotID, robot.status, robot.stepsTaken, robot.batteryLevel]
+            new_row = [self.env.now, robot.robotID, robot.status, robot.stepsTaken, robot.batteryLevel, None, None]
             #self.timeStatDF = self.timeStatDF.append(new_row, ignore_index=True)
+            #if t*60 % cycleSeconds == 0 and t != 0:
+            if True:
+                if self.TaskAssignmentPolicy == "vrp" or self.TaskAssignmentPolicy == "rl":
+                    uncompletedTasks = []
+                    for robot1 in self.Robots:
+                        uncompletedTasks.extend(robot1.taskList)
+                        #if robot.currentTask: bunu yoruma alınca şu an devam eden taskın da bittiğini assume ettik
+                        #    uncompletedTasks.append(robot.currentTask)
+                    completedTasks = [task for task in self.extractTaskList if task not in uncompletedTasks]
+
+                elif self.TaskAssignmentPolicy == "rawsimo":
+                    uncompletedTasks = []
+                    for robot1 in self.Robots:
+                        uncompletedTasks.extend(robot1.taskList)
+                        #if robot.currentTask:
+                        #    uncompletedTasks.append(robot.currentTask)
+                    fullTaskList = []
+                    for lst in self.extractTaskList:
+                        fullTaskList.extend(lst)
+                    completedTasks = [task for task in fullTaskList if task not in uncompletedTasks]
+
+                new_row = [self.env.now, robot.robotID, robot.status, robot.stepsTaken, robot.batteryLevel, len(uncompletedTasks), len(completedTasks)]
+
             self.timeStatDF.loc[len(self.timeStatDF.index)] = new_row
 
+
+
     def startCycleVRP(self, itemlist, cycleSeconds, cycleIdx):
-        #generatordan itemList createle
-        newItemlist = np.array(([1, 10],
-                         [2, 10],
-                         [3, 10],
-                         [4, 10],
-                         [5, 10],
-                         [6, 10],
-                         [7, 10],))
 
         if cycleIdx != 0:
             itemlist = self.combineItemListsVRP(itemlist=itemlist)
@@ -801,7 +852,7 @@ class RMFS_Model():
             self.env.process(self.updateCharge(t=i, updateTime=1))
 
         for i in range(0, self.cycleSeconds//60 + 1):
-            self.env.process(self.collectTimeStat(t=i))
+            self.env.process(self.collectTimeStat(t=i, cycleSeconds=cycleSeconds))
 
         if cycleIdx == 0:
             for robot in self.Robots:
@@ -839,9 +890,15 @@ class RMFS_Model():
                     a = 10
             self.startCycleVRP(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
             self.env.run(until=self.env.now + cycleSeconds)
+            self.addCollectedSKUCount()
         if printOutput:
-            self.timeStatDF.to_excel('outputVRP.xlsx', index=False)
+            #self.timeStatDF.to_excel('outputVRP.xlsx', index=False)
             #cycle başında ve sonu üst üste gelince duplicate var
+            writer = pd.ExcelWriter('outputVRP.xlsx', engine='xlsxwriter')
+            self.timeStatDF.to_excel(writer, sheet_name='Sheet1', index=False)
+            df = self.calculateObservationStat()
+            df.to_excel(writer, sheet_name='Sheet2', index=False)
+            writer._save()
 
 
     def podSelectionRawSIMO(self, selectedPodsList, station):
@@ -950,7 +1007,7 @@ class RMFS_Model():
             self.env.process(self.updateCharge(t=i, updateTime=1))
 
         for i in range(0, self.cycleSeconds//60 + 1):
-            self.env.process(self.collectTimeStat(t=i))
+            self.env.process(self.collectTimeStat(t=i, cycleSeconds=cycleSeconds))
 
         if cycleIdx == 0:
             for robot in self.Robots:
@@ -986,8 +1043,15 @@ class RMFS_Model():
                     a = 10
             self.startCycleRawSIMO(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
             self.env.run(until=self.env.now + cycleSeconds)
+            self.addCollectedSKUCount()
         if printOutput:
-            self.timeStatDF.to_excel('outputRAWSIMO.xlsx', index=False)
+            writer = pd.ExcelWriter('outputRAWSIMO.xlsx', engine='xlsxwriter')
+            #self.timeStatDF.to_excel('outputRAWSIMO.xlsx', index=False)
+            self.timeStatDF.to_excel(writer, sheet_name='Sheet1', index=False)
+            df = self.calculateObservationStat()
+            df.to_excel(writer, sheet_name='Sheet2', index=False)
+            writer._save()
+
 
 def PhaseITaskAssignmentExperiment(numTask, network, OutputLocations, ChargeLocations, RobotLocations):
     def divide_list_into_n_sublists(lst, n):
@@ -1154,10 +1218,10 @@ if __name__ == "__main__":
 
 
     # Rawsimo task assignment vs VRP aynı podları ikisine de veriyor, bir cycledaki toplam alınan mesafeyi veriyor
-    PhaseITaskAssignmentExperiment(numTask=30, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
+    # PhaseITaskAssignmentExperiment(numTask=30, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
 
     # Aynı orderları her cycleda veriyor ve her şeyi karşılaştırıyor; pod seçimi, task assignment ve şarj politikası
-    # PhaseIandIICompleteExperiment(numOrderPerCycle=23, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
+    PhaseIandIICompleteExperiment(numOrderPerCycle=23, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
     a = 15
 
 
