@@ -16,6 +16,7 @@ import networkx as nx
 import vrp
 import math
 import copy
+from RL_test import VRPDatasetNew
 
 
 
@@ -1089,6 +1090,27 @@ class RMFS_Model():
             df.to_excel(writer, sheet_name='Sheet2', index=False)
             writer._save()
 
+    """
+    def fixedLocationRL(self, assign=True):
+        max_row = self.network.
+
+        loc = []
+        for task in self.extractTaskList:
+            pass
+
+        loc = np.array()
+        data = VRPDatasetNew(size=20, num_samples=1, loc=loc, demand=demand, depot=depot)
+
+    def startCycleRL(self, itemlist, cycleSeconds, cycleIdx):
+
+        if cycleIdx != 0:
+            itemlist = self.combineItemListsVRP(itemlist=itemlist)
+
+        start = time.time()
+        selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemlist, satisfiedReturn=True)
+        extractTaskList = self.podSelectionHungarian(selectedPodsList, outputTask=True)
+        self.totalPodNumber += len(selectedPodsList)
+    """
 
 def PhaseITaskAssignmentExperiment(numTask, network, OutputLocations, ChargeLocations, RobotLocations):
     def divide_list_into_n_sublists(lst, n):
@@ -1238,18 +1260,18 @@ if __name__ == "__main__":
     #rows = 10 #3x6
     #columns = 31
 
-    #rows = 10 #3x3
-    #columns = 16
+    rows = 10 #3x3
+    columns = 16
 
-    rows=16 #5x15
-    columns=76
+    #rows=16 #5x15
+    #columns=76
 
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
     output = [(5, 15), (10, 15), (20, 15), (25, 15)]
     charging = [(0, 9)]
     robots = [(0, 8), (10, 9), (0, 0), (0, 7),(1, 8), (1, 9), (1, 0), (1, 7), (0, 4)]
-    #layout.draw_network_with_shelves(rectangular_network, pos)
+    layout.draw_network_with_shelves(rectangular_network, pos)
 
 
 
