@@ -1,6 +1,6 @@
 import torch
 from typing import NamedTuple
-from utils.boolmask import mask_long2bool, mask_long_scatter
+from RL.utils.boolmask import mask_long2bool, mask_long_scatter
 import torch.nn.functional as F
 
 
