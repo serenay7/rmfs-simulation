@@ -4,6 +4,7 @@ import simpy
 from emre_test import RMFS_Model
 from interface_initializer import station_location, robot_location
 from pyDOE3 import *
+import sys
 
 import numpy as np
 import pandas as pd
@@ -17,6 +18,7 @@ from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 import networkx as nx
 
+sys.setrecursionlimit(1500) 
 
 def run_simulation():
     print("started")
@@ -201,6 +203,7 @@ def run_simulation():
             sheet2.to_excel(writer, sheet_name=f'Observed{i+1}', index=False)
 
         writer._save()
+        print("run is over")
 
 
     result_label.config(text="Simulation started...")  # Update this based on your simulation output
