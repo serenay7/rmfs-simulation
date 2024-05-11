@@ -83,15 +83,17 @@ def run_simulation():
         print("taguchi is working")
 
         if parameter_count==1:
-            experiment = fracfact('A')
+            experiment = ff2n(1)
         elif parameter_count==2:
-            experiment = fracfact('A B')
+            experiment = ff2n(2)
         elif parameter_count==3:
-            experiment = fracfact('A B C')
+            experiment = ff2n(3)
         elif parameter_count==4:
-            experiment = fracfact('A B C D')
+            experiment = ff2n(4)
         elif parameter_count==5:
-            experiment = fracfact('A B C D E')
+            experiment = ff2n(5)
+        
+        print(experiment)
         
         for i in range(len(experiment)):
             for j in range(len(experiment[i])):
@@ -169,6 +171,8 @@ def run_simulation():
 
         exp_df.to_excel(writer, sheet_name='Experiment', index=False)
 
+        total_steps_list = []
+
         for i in range(len(experiment)):
 
             pick_station_amount = int(exp_array[i,0])
@@ -199,8 +203,21 @@ def run_simulation():
 
             sheet1, sheet2 = simulation.TaguchiVRP(cycle_amount,cycle_runtime, printOutput=True)
 
+            print(sheet1)
+
+            max_steps_per_robot = sheet1.groupby('robotID')['stepsTaken'].max()
+            total_steps = max_steps_per_robot.sum()
+            total_steps_list.append(total_steps)
+            print(total_steps)
+
             sheet1.to_excel(writer, sheet_name=f'TimeSeries{i+1}', index=False)
             sheet2.to_excel(writer, sheet_name=f'Observed{i+1}', index=False)
+
+        total_steps_df = pd.DataFrame({'TotalSteps': total_steps_list})
+        total_steps_df.to_excel(writer, sheet_name='TotalSteps', index=False)
+
+        min_index = total_steps_df['TotalSteps'].idxmin()
+        print('Best Experiment:', min_index+1)
 
         writer._save()
         print("run is over")
