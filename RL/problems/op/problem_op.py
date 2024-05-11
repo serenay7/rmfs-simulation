@@ -2,8 +2,8 @@ from torch.utils.data import Dataset
 import torch
 import os
 import pickle
-from problems.op.state_op import StateOP
-from utils.beam_search import beam_search
+from RL.problems.op.state_op import StateOP
+from RL.utils.beam_search import beam_search
 
 
 class OP(object):

@@ -1,7 +1,7 @@
 import time
 import torch
 from typing import NamedTuple
-from utils.lexsort import torch_lexsort
+from RL.utils.lexsort import torch_lexsort
 
 
 def beam_search(*args, **kwargs):
