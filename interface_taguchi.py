@@ -16,10 +16,3 @@ import networkx as nx
 import vrp
 import math
 import copy
-
-from pyDOE3 import *
-
-t = fracfact('A B C')
-print(t)
-
-a=10

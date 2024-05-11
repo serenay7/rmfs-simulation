@@ -34,36 +34,37 @@ def run_simulation():
     # inputs
     horizontal_ailes = int(warehouse_horizontal_entry.get())
     vertical_ailes = int(warehouse_vertical_entry.get())
-    pick_station_amount = int(pick_station_amount_entry.get()) 
-    charge_station_amount = int(charge_station_amount_entry.get()) 
     pick_station_location = pick_station_location_combo.get()
     charge_station_location = charge_station_location_combo.get()
     cycle_amount = int(cycle_amount_entry.get())
     cycle_runtime = int(cycle_runtime_entry.get())
-    robot_amount = int(robot_amount_entry.get())
     charging_rate = float(charging_rate_entry.get())
     max_battery = float(maximum_battery_entry.get())
     pearl_rate = float(pearl_rate_entry.get())
     rest_rate = float(rest_rate_entry.get())
-    charge_flag_rate = float(charge_flag_rate_entry.get())
-    max_charge_rate = float(max_charge_rate_entry.get())
-
-    env = simpy.Environment()
-
-    rows = (3*int(horizontal_ailes))+4 # 10
-    columns = (5*int(vertical_ailes))+6 # 16
-
-    rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
-    layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-    nodes = list(rectangular_network.nodes)
-    simulation = RMFS_Model(env=env, network=rectangular_network)
-    simulation.createPods()
-    simulation.createSKUs()
-    startLocations = robot_location(pick_station_location, charge_station_location, columns, rows, robot_amount)
-
+    pick_station_amount = int(pick_station_amount_entry.get()) #
+    charge_station_amount = int(charge_station_amount_entry.get()) #
+    robot_amount = int(robot_amount_entry.get()) #
+    charge_flag_rate = float(charge_flag_rate_entry.get()) #
+    max_charge_rate = float(max_charge_rate_entry.get()) #
+    
+    
     # no taguchi, single run
     if do_tg==0: 
 
+        env = simpy.Environment()
+
+        rows = (3*int(horizontal_ailes))+4 # 10
+        columns = (5*int(vertical_ailes))+6 # 16
+
+        rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
+        layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+        # nodes = list(rectangular_network.nodes)
+        simulation = RMFS_Model(env=env, network=rectangular_network)
+        simulation.createPods()
+        simulation.createSKUs()
+
+        startLocations = robot_location(pick_station_location, charge_station_location, columns, rows, robot_amount)
         pick_locations, charge_locations = station_location(pick_station_amount, pick_station_location, charge_station_amount, charge_station_location, horizontal_ailes, vertical_ailes, columns, rows)
         
         simulation.createChargingStations(charge_locations)
@@ -95,15 +96,12 @@ def run_simulation():
                 if experiment[i][j] == -1:
                     experiment[i][j] = 0
 
-        print(experiment)
-
         no_of_experiments = experiment.shape[0]
         exp_array = np.zeros((no_of_experiments,5))
 
         print(exp_array)
 
         testdict = {'do_pick_station_amount':0, 'do_charge_station_amount':1, 'do_robot_amount':2, 'do_charge_flag_rate':3, 'do_max_charge_rate':4}
-
         cols = []
 
         if do_pick_station_amount:
@@ -114,6 +112,7 @@ def run_simulation():
             pick_station_amounts = [pick_station_amount]
             
         if do_charge_station_amount:
+            cols.append(testdict["do_charge_station_amount"])
             charge_station_amount2 = int(charge_station_amount2_entry.get())
             charge_station_amounts = [charge_station_amount, charge_station_amount2]
         else: 
@@ -127,20 +126,82 @@ def run_simulation():
             robot_amounts = [robot_amount]
 
         if do_charge_flag_rate:
-            charge_flag_rate2 = int(charge_flag_rate2_entry.get())
+            cols.append(testdict["do_charge_flag_rate"])
+            charge_flag_rate2 = float(charge_flag_rate2_entry.get())
             charge_flag_rates = [charge_flag_rate, charge_flag_rate2]
         else:
             charge_flag_rates = [charge_flag_rate]
 
         if do_max_charge_rate:
-            max_charge_rate2 = int(max_charge_rate2_entry.get())
+            cols.append(testdict["do_max_charge_rate"])
+            max_charge_rate2 = float(max_charge_rate2_entry.get())
             max_charge_rates = [max_charge_rate, max_charge_rate2]
         else:
             max_charge_rates = [max_charge_rate]
 
         exp_array[:, cols] = experiment
         print(exp_array)
+
+        for i in range(len(experiment)):
+            a = int(exp_array[i,0]) #pick station
+            exp_array[i,0] = pick_station_amounts[a]
+            
+            b = int(exp_array[i,1]) #charge station
+            exp_array[i,1] = charge_station_amounts[b]
+
+            c = int(exp_array[i,2]) #charge station
+            exp_array[i,2] = robot_amounts[c]
+
+            d = int(exp_array[i,3]) #charge station
+            exp_array[i,3] = charge_flag_rates[d]
+
+            e = int(exp_array[i,4]) #charge station
+            exp_array[i,4] = max_charge_rates[e]
+            
+            print(exp_array)
+
+        exp_df = pd.DataFrame(data = exp_array,   
+                  columns = ['Pick Station Amount', 'Charge Station Amount', 'Robot Amount', 'Charge Flag Rate', 'Max Charge Rate']) 
         
+        writer = pd.ExcelWriter('TaguchiVRP.xlsx', engine='xlsxwriter')
+
+        exp_df.to_excel(writer, sheet_name='Experiment', index=False)
+
+        for i in range(len(experiment)):
+
+            pick_station_amount = int(exp_array[i,0])
+            charge_station_amount = int(exp_array[i,1])
+            robot_amount = int(exp_array[i,2])
+            charge_flag_rate = exp_array[i,3]
+            max_charge_rate = exp_array[i,4]
+
+            env = simpy.Environment()
+
+            rows = (3*int(horizontal_ailes))+4 # 10
+            columns = (5*int(vertical_ailes))+6 # 16
+
+            rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
+            layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+            simulation = RMFS_Model(env=env, network=rectangular_network)
+            simulation.createPods()
+            simulation.createSKUs()
+
+            startLocations = robot_location(pick_station_location, charge_station_location, columns, rows, robot_amount)
+            pick_locations, charge_locations = station_location(pick_station_amount, pick_station_location, charge_station_amount, charge_station_location, horizontal_ailes, vertical_ailes, columns, rows)
+        
+            simulation.createChargingStations(charge_locations)
+            simulation.createOutputStations(pick_locations)
+            simulation.fillPods()
+            simulation.distanceMatrixCalculate()
+            simulation.createRobots(startLocations, charging_rate, max_battery, pearl_rate, rest_rate, charge_flag_rate, max_charge_rate)
+
+            sheet1, sheet2 = simulation.TaguchiVRP(cycle_amount,cycle_runtime, printOutput=True)
+
+            sheet1.to_excel(writer, sheet_name=f'TimeSeries{i+1}', index=False)
+            sheet2.to_excel(writer, sheet_name=f'Observed{i+1}', index=False)
+
+        writer._save()
+
 
     result_label.config(text="Simulation started...")  # Update this based on your simulation output
 
