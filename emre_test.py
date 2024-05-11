@@ -34,6 +34,7 @@ class RMFS_Model():
         self.timeStatDF = pd.DataFrame(columns=['time', 'robotID', 'robotStatus', 'stepsTaken', 'batteryLevel', 'remainingTasks', 'completedTasks'])
         self.selectedPodsList = []
         self.satisfiedList = []
+        self.totalPodNumber = 0
     def createPods(self):
         podNodes = list(self.podGraph.nodes)
 
@@ -791,6 +792,9 @@ class RMFS_Model():
             new_row = {'Statistics': feature, 'Value': robot.replaceCount}
             df.loc[len(df)] = new_row
 
+        new_row = {'Statistics': "SelectedPodNum", 'Value': self.totalPodNumber}
+        df.loc[len(df)] = new_row
+
         return df
 
     def plotTimeStat(self):
@@ -837,6 +841,7 @@ class RMFS_Model():
         start = time.time()
         selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemlist, satisfiedReturn=True)
         extractTaskList = self.podSelectionHungarian(selectedPodsList, outputTask=True)
+        self.totalPodNumber += len(selectedPodsList)
         end = time.time()
         print("POD SELECTION TIME: ", end-start)
         start = time.time()
@@ -1023,6 +1028,11 @@ class RMFS_Model():
             selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemList=itemListStation, satisfiedReturn=True)
             taskList = self.podSelectionRawSIMO(selectedPodsList=selectedPodsList, station=station)
             self.extractTaskList.append(taskList)
+
+        allTasks = []
+        for lst in self.extractTaskList:
+            allTasks.extend(lst)
+        self.totalPodNumber += len(allTasks)
 
 
 
