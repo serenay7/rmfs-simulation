@@ -31,25 +31,6 @@ def run_simulation():
 
     parameter_count = do_pick_station_amount + do_charge_station_amount + do_robot_amount + do_charge_flag_rate + do_max_charge_rate
 
-    param1 = 'A'
-    param2 = 'AB'
-    param3 = 'I ABC'
-    param4 = 'I ABCD'
-    param5 = 'I ABCDE'
-
-    if parameter_count==1:
-        experiment = fracfact(param1)
-    elif parameter_count==2:
-        experiment = fracfact(param2)
-    elif parameter_count==3:
-        experiment = fracfact(param3)
-    elif parameter_count==4:
-        experiment = fracfact(param4)
-    elif parameter_count==5:
-        experiment = fracfact(param5)
-    
-    print(experiment)
-
     # inputs
     horizontal_ailes = int(warehouse_horizontal_entry.get())
     vertical_ailes = int(warehouse_vertical_entry.get())
@@ -67,22 +48,22 @@ def run_simulation():
     charge_flag_rate = float(charge_flag_rate_entry.get())
     max_charge_rate = float(max_charge_rate_entry.get())
 
+    env = simpy.Environment()
+
+    rows = (3*int(horizontal_ailes))+4 # 10
+    columns = (5*int(vertical_ailes))+6 # 16
+
+    rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
+    layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+    nodes = list(rectangular_network.nodes)
+    simulation = RMFS_Model(env=env, network=rectangular_network)
+    simulation.createPods()
+    simulation.createSKUs()
+    startLocations = robot_location(pick_station_location, charge_station_location, columns, rows, robot_amount)
+
     # no taguchi, single run
     if do_tg==0: 
-        env = simpy.Environment()
 
-        rows = (3*int(horizontal_ailes))+4 # 10
-        columns = (5*int(vertical_ailes))+6 # 16
-
-        rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
-        layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-
-        nodes = list(rectangular_network.nodes)
-        simulation = RMFS_Model(env=env, network=rectangular_network)
-        simulation.createPods()
-        simulation.createSKUs()
-
-        startLocations = robot_location(pick_station_location, charge_station_location, columns, rows, robot_amount)
         pick_locations, charge_locations = station_location(pick_station_amount, pick_station_location, charge_station_amount, charge_station_location, horizontal_ailes, vertical_ailes, columns, rows)
         
         simulation.createChargingStations(charge_locations)
@@ -97,6 +78,69 @@ def run_simulation():
     
     elif do_tg==1:
         print("taguchi is working")
+
+        if parameter_count==1:
+            experiment = fracfact('A')
+        elif parameter_count==2:
+            experiment = fracfact('A B')
+        elif parameter_count==3:
+            experiment = fracfact('A B C')
+        elif parameter_count==4:
+            experiment = fracfact('A B C D')
+        elif parameter_count==5:
+            experiment = fracfact('A B C D E')
+        
+        for i in range(len(experiment)):
+            for j in range(len(experiment[i])):
+                if experiment[i][j] == -1:
+                    experiment[i][j] = 0
+
+        print(experiment)
+
+        no_of_experiments = experiment.shape[0]
+        exp_array = np.zeros((no_of_experiments,5))
+
+        print(exp_array)
+
+        testdict = {'do_pick_station_amount':0, 'do_charge_station_amount':1, 'do_robot_amount':2, 'do_charge_flag_rate':3, 'do_max_charge_rate':4}
+
+        cols = []
+
+        if do_pick_station_amount:
+            cols.append(testdict["do_pick_station_amount"])
+            pick_station_amount2 = int(pick_station_amount2_entry.get())
+            pick_station_amounts = [pick_station_amount, pick_station_amount2]
+        else:
+            pick_station_amounts = [pick_station_amount]
+            
+        if do_charge_station_amount:
+            charge_station_amount2 = int(charge_station_amount2_entry.get())
+            charge_station_amounts = [charge_station_amount, charge_station_amount2]
+        else: 
+            charge_station_amounts = [charge_station_amount]
+
+        if do_robot_amount:
+            cols.append(testdict["do_robot_amount"])
+            robot_amount2 = int(robot_amount2_entry.get())
+            robot_amounts = [robot_amount, robot_amount2]
+        else:
+            robot_amounts = [robot_amount]
+
+        if do_charge_flag_rate:
+            charge_flag_rate2 = int(charge_flag_rate2_entry.get())
+            charge_flag_rates = [charge_flag_rate, charge_flag_rate2]
+        else:
+            charge_flag_rates = [charge_flag_rate]
+
+        if do_max_charge_rate:
+            max_charge_rate2 = int(max_charge_rate2_entry.get())
+            max_charge_rates = [max_charge_rate, max_charge_rate2]
+        else:
+            max_charge_rates = [max_charge_rate]
+
+        exp_array[:, cols] = experiment
+        print(exp_array)
+        
 
     result_label.config(text="Simulation started...")  # Update this based on your simulation output
 

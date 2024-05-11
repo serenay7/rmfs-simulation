@@ -17,14 +17,9 @@ import vrp
 import math
 import copy
 
-rows = 10 #3x3
-columns = 16
+from pyDOE3 import *
 
+t = fracfact('A B C')
+print(t)
 
-rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
-layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-output = [(0, 5)]
-charging = [(0, 9)]
-robots = [(0, 8), (5, 0), (10, 9)]
-
-layout.draw_network_with_shelves(rectangular_network, pos)
+a=10

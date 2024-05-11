@@ -900,6 +900,33 @@ class RMFS_Model():
             df.to_excel(writer, sheet_name='Sheet2', index=False)
             writer._save()
 
+    def TaguchiVRP(self, numCycle, cycleSeconds, printOutput=False, allItemList = None, numOrderPerCycle=30):
+
+        self.numCycle = numCycle
+        self.cycleSeconds = cycleSeconds
+        for cycle_idx in range(numCycle):
+            self.currentCycle = cycle_idx
+            print("Cycle: ", cycle_idx)
+            if allItemList:
+                itemlist = allItemList[cycle_idx]
+            else:
+                itemlist = (self.orderGenerator(numOrder=numOrderPerCycle))
+            for robot in self.Robots:
+                if robot.taskList:
+                    a = 10
+            self.startCycleVRP(itemlist=itemlist, cycleSeconds=cycleSeconds, cycleIdx=cycle_idx)
+            self.env.run(until=self.env.now + cycleSeconds)
+            self.addCollectedSKUCount()
+        if printOutput:
+            #self.timeStatDF.to_excel('outputVRP.xlsx', index=False)
+            #cycle başında ve sonu üst üste gelince duplicate var
+            #writer = pd.ExcelWriter('outputVRP.xlsx', engine='xlsxwriter')
+            #self.timeStatDF.to_excel(writer, sheet_name='Sheet1', index=False)
+            df = self.calculateObservationStat()
+            #df.to_excel(writer, sheet_name='Sheet2', index=False)
+            #writer._save()
+
+        return self.timeStatDF, df
 
     def podSelectionRawSIMO(self, selectedPodsList, station):
         taskList = []
