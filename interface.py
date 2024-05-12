@@ -30,8 +30,9 @@ def run_simulation():
     do_robot_amount = int(robot_amount_taguchi.get())
     do_charge_flag_rate = int(charge_flag_rate_taguchi.get())
     do_max_charge_rate = int(max_charge_rate_taguchi.get())
+    do_pearl_rate = int(pearl_rate_taguchi.get())
 
-    parameter_count = do_pick_station_amount + do_charge_station_amount + do_robot_amount + do_charge_flag_rate + do_max_charge_rate
+    parameter_count = do_pick_station_amount + do_charge_station_amount + do_robot_amount + do_charge_flag_rate + do_max_charge_rate + do_pearl_rate
 
     # inputs
     horizontal_ailes = int(warehouse_horizontal_entry.get())
@@ -82,17 +83,7 @@ def run_simulation():
     elif do_tg==1:
         print("taguchi is working")
 
-        if parameter_count==1:
-            experiment = ff2n(1)
-        elif parameter_count==2:
-            experiment = ff2n(2)
-        elif parameter_count==3:
-            experiment = ff2n(3)
-        elif parameter_count==4:
-            experiment = ff2n(4)
-        elif parameter_count==5:
-            experiment = ff2n(5)
-        
+        experiment = ff2n(parameter_count)
         print(experiment)
         
         for i in range(len(experiment)):
@@ -101,11 +92,11 @@ def run_simulation():
                     experiment[i][j] = 0
 
         no_of_experiments = experiment.shape[0]
-        exp_array = np.zeros((no_of_experiments,5))
+        exp_array = np.zeros((no_of_experiments,6))
 
         print(exp_array)
 
-        testdict = {'do_pick_station_amount':0, 'do_charge_station_amount':1, 'do_robot_amount':2, 'do_charge_flag_rate':3, 'do_max_charge_rate':4}
+        testdict = {'do_pick_station_amount':0, 'do_charge_station_amount':1, 'do_robot_amount':2, 'do_charge_flag_rate':3, 'do_max_charge_rate':4, 'do_pearl_rate':5}
         cols = []
 
         if do_pick_station_amount:
@@ -143,6 +134,13 @@ def run_simulation():
         else:
             max_charge_rates = [max_charge_rate]
 
+        if do_pearl_rate:
+            cols.append(testdict["do_pearl_rate"])
+            pearl_rate2 = float(pearl_rate2_entry.get())
+            pearl_rates = [pearl_rate, pearl_rate2]
+        else:
+            pearl_rates = [pearl_rate]
+        
         exp_array[:, cols] = experiment
         print(exp_array)
 
@@ -153,19 +151,22 @@ def run_simulation():
             b = int(exp_array[i,1]) #charge station
             exp_array[i,1] = charge_station_amounts[b]
 
-            c = int(exp_array[i,2]) #charge station
+            c = int(exp_array[i,2]) #robot amount
             exp_array[i,2] = robot_amounts[c]
 
-            d = int(exp_array[i,3]) #charge station
+            d = int(exp_array[i,3]) #charge flag rate
             exp_array[i,3] = charge_flag_rates[d]
 
-            e = int(exp_array[i,4]) #charge station
+            e = int(exp_array[i,4]) #max charge rate
             exp_array[i,4] = max_charge_rates[e]
+
+            f = int(exp_array[i,5]) #max charge rate
+            exp_array[i,5] = max_charge_rates[f]
             
             print(exp_array)
 
         exp_df = pd.DataFrame(data = exp_array,   
-                  columns = ['Pick Station Amount', 'Charge Station Amount', 'Robot Amount', 'Charge Flag Rate', 'Max Charge Rate']) 
+                  columns = ['Pick Station Amount', 'Charge Station Amount', 'Robot Amount', 'Charge Flag Rate', 'Max Charge Rate', 'Pearl Rate']) 
         
         writer = pd.ExcelWriter('TaguchiVRP.xlsx', engine='xlsxwriter')
 
@@ -180,6 +181,7 @@ def run_simulation():
             robot_amount = int(exp_array[i,2])
             charge_flag_rate = exp_array[i,3]
             max_charge_rate = exp_array[i,4]
+            pearl_rate = exp_array[i,5]
 
             env = simpy.Environment()
 
@@ -241,6 +243,7 @@ charge_station_location_taguchi = tk.BooleanVar()
 robot_amount_taguchi = tk.BooleanVar()
 charge_flag_rate_taguchi = tk.BooleanVar()
 max_charge_rate_taguchi = tk.BooleanVar()
+pearl_rate_taguchi = tk.BooleanVar()
 
 # SETTINGS START
 
@@ -397,12 +400,18 @@ max_charge_rate2_entry = ttk.Entry(frame)
 max_charge_rate2_entry.grid(row=38, column=1)
 max_charge_rate2_entry.insert(0, "0.95")
 
+ttk.Checkbutton(frame, text="Pearl Rate", variable=pearl_rate_taguchi).grid(row=39, column=0, sticky=tk.W)
+ttk.Label(frame, text="Pearl Rate 2:").grid(row=40, column=0, sticky=tk.W) #TO BE UPDATED
+pearl_rate2_entry = ttk.Entry(frame)
+pearl_rate2_entry.grid(row=40, column=1)
+pearl_rate2_entry.insert(0, "0.95")
+
 # Simulation button
 run_button = ttk.Button(frame, text="Run Simulation", command=run_simulation)
-run_button.grid(row=40, column=0, columnspan=2)
+run_button.grid(row=50, column=0, columnspan=2)
 
 # Result label
 result_label = ttk.Label(frame, text="")
-result_label.grid(row=41, column=0, columnspan=2)
+result_label.grid(row=51, column=0, columnspan=2)
 
 app.mainloop()
