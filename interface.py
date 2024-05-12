@@ -328,90 +328,96 @@ empty_battery_consumption_entry = ttk.Entry(frame)
 empty_battery_consumption_entry.grid(row=17, column=1)
 empty_battery_consumption_entry.insert(0, "11.9566")'''
 
-ttk.Label(frame, text="Charging Rate (Ah):").grid(row=18, column=0, sticky=tk.W)
+ttk.Label(frame, text="Charging Rate (Ah):").grid(row=12, column=0, sticky=tk.W)
 charging_rate_entry = ttk.Entry(frame)
-charging_rate_entry.grid(row=18, column=1)
+charging_rate_entry.grid(row=12, column=1)
 charging_rate_entry.insert(0, "41.6")
 
-ttk.Label(frame, text="Maximum Battery (Ah):").grid(row=19, column=0, sticky=tk.W)
+ttk.Label(frame, text="Maximum Battery (Ah):").grid(row=13, column=0, sticky=tk.W)
 maximum_battery_entry = ttk.Entry(frame)
-maximum_battery_entry.grid(row=19, column=1)
+maximum_battery_entry.grid(row=13, column=1)
 maximum_battery_entry.insert(0, "41.6")
 
-ttk.Label(frame, text="").grid(row=20, column=0, columnspan=2)
-ttk.Label(frame, text="Charge Policy Settings", font=('Helvetica', 12, 'bold')).grid(row=21, column=0, columnspan=2, sticky=tk.W)
+ttk.Label(frame, text="").grid(row=14, column=0, columnspan=2)
+ttk.Label(frame, text="Charge Policy Settings", font=('Helvetica', 12, 'bold')).grid(row=15, column=0, columnspan=2, sticky=tk.W)
 
-ttk.Label(frame, text="Pearl Rate:").grid(row=22, column=0, sticky=tk.W)
+ttk.Label(frame, text="Pearl Rate:").grid(row=16, column=0, sticky=tk.W)
 pearl_rate_entry = ttk.Entry(frame)
-pearl_rate_entry.grid(row=22, column=1)
+pearl_rate_entry.grid(row=16, column=1)
 pearl_rate_entry.insert(0, "0.4")
 
-ttk.Label(frame, text="Rest Rate:").grid(row=23, column=0, sticky=tk.W) #TO BE UPDATED
+ttk.Label(frame, text="Rest Rate:").grid(row=17, column=0, sticky=tk.W) #TO BE UPDATED
 rest_rate_entry = ttk.Entry(frame)
-rest_rate_entry.grid(row=23, column=1)
+rest_rate_entry.grid(row=17, column=1)
 rest_rate_entry.insert(0, "0.1")
 
-ttk.Label(frame, text="Charge Flag Rate:").grid(row=24, column=0, sticky=tk.W) #TO BE UPDATED
+ttk.Label(frame, text="Charge Flag Rate:").grid(row=18, column=0, sticky=tk.W) #TO BE UPDATED
 charge_flag_rate_entry = ttk.Entry(frame)
-charge_flag_rate_entry.grid(row=24, column=1)
+charge_flag_rate_entry.grid(row=18, column=1)
 charge_flag_rate_entry.insert(0, "0.8")
 
-ttk.Label(frame, text="Max Charge Rate:").grid(row=25, column=0, sticky=tk.W) #TO BE UPDATED
+ttk.Label(frame, text="Max Charge Rate:").grid(row=19, column=0, sticky=tk.W) #TO BE UPDATED
 max_charge_rate_entry = ttk.Entry(frame)
-max_charge_rate_entry.grid(row=25, column=1)
+max_charge_rate_entry.grid(row=19, column=1)
 max_charge_rate_entry.insert(0, "0.85")
 
-ttk.Label(frame, text="").grid(row=26, column=0, columnspan=2)
-ttk.Label(frame, text="Taguchi Experiment Frame", font=('Helvetica', 12, 'bold')).grid(row=27, column=0, columnspan=2, sticky=tk.W)
+ttk.Label(frame, text="Taguchi Experiment Frame", font=('Helvetica', 12, 'bold')).grid(row=0, column=3, columnspan=2, sticky=tk.W)
 
-ttk.Checkbutton(frame, text="Enable Taguchi Experiment", variable=do_taguchi).grid(row=28, column=0, sticky=tk.W)
+ttk.Checkbutton(frame, text="Enable Taguchi Experiment", variable=do_taguchi).grid(row=1, column=3, sticky=tk.W)
 
-ttk.Checkbutton(frame, text="Pick Station Amount", variable=pick_station_amount_taguchi).grid(row=29, column=0, sticky=tk.W)
-ttk.Label(frame, text="Pick Station Amount 2:").grid(row=30, column=0, sticky=tk.W)
+ttk.Checkbutton(frame, text="Pick Station Amount", variable=pick_station_amount_taguchi).grid(row=2, column=3, sticky=tk.W)
+ttk.Label(frame, text="Pick Station Amount 2:").grid(row=3, column=3, sticky=tk.W)
 pick_station_amount2_entry = ttk.Entry(frame)
-pick_station_amount2_entry.grid(row=30, column=1)
+pick_station_amount2_entry.grid(row=3, column=4)
 pick_station_amount2_entry.insert(0, "2")  # Default value
 
 # ttk.Checkbutton(frame, text="Pick Station Location", variable=pick_station_location_taguchi).grid(row=30, column=0, sticky=tk.W)
 
-ttk.Checkbutton(frame, text="Charge Station Amount", variable=charge_station_amount_taguchi).grid(row=31, column=0, sticky=tk.W)
-ttk.Label(frame, text="Charge Station Amount 2:").grid(row=32, column=0, sticky=tk.W)
+ttk.Checkbutton(frame, text="Charge Station Amount", variable=charge_station_amount_taguchi).grid(row=4, column=3, sticky=tk.W)
+ttk.Label(frame, text="Charge Station Amount 2:").grid(row=5, column=3, sticky=tk.W)
 charge_station_amount2_entry = ttk.Entry(frame)
-charge_station_amount2_entry.grid(row=32, column=1)
+charge_station_amount2_entry.grid(row=5, column=4)
 charge_station_amount2_entry.insert(0, "2")  # Default value
 
 # ttk.Checkbutton(frame, text="Charge Station Location", variable=charge_station_location_taguchi).grid(row=32, column=0, sticky=tk.W)
 
-ttk.Checkbutton(frame, text="Robot Amount", variable=robot_amount_taguchi).grid(row=33, column=0, sticky=tk.W)
-ttk.Label(frame, text="Robot Amount 2:").grid(row=34, column=0, sticky=tk.W)
+ttk.Checkbutton(frame, text="Robot Amount", variable=robot_amount_taguchi).grid(row=6, column=3, sticky=tk.W)
+ttk.Label(frame, text="Robot Amount 2:").grid(row=7, column=3, sticky=tk.W)
 robot_amount2_entry = ttk.Entry(frame)
-robot_amount2_entry.grid(row=34, column=1)
+robot_amount2_entry.grid(row=7, column=4)
 robot_amount2_entry.insert(0, "3")
 
-ttk.Checkbutton(frame, text="Charge Flag Rate", variable=charge_flag_rate_taguchi).grid(row=35, column=0, sticky=tk.W)
-ttk.Label(frame, text="Charge Flag Rate 2:").grid(row=36, column=0, sticky=tk.W) #TO BE UPDATED
+ttk.Checkbutton(frame, text="Charge Flag Rate", variable=charge_flag_rate_taguchi).grid(row=8, column=3, sticky=tk.W)
+ttk.Label(frame, text="Charge Flag Rate 2:").grid(row=9, column=3, sticky=tk.W) #TO BE UPDATED
 charge_flag_rate2_entry = ttk.Entry(frame)
-charge_flag_rate2_entry.grid(row=36, column=1)
+charge_flag_rate2_entry.grid(row=9, column=4)
 charge_flag_rate2_entry.insert(0, "0.9")
 
-ttk.Checkbutton(frame, text="Max Charge Rate", variable=max_charge_rate_taguchi).grid(row=37, column=0, sticky=tk.W)
-ttk.Label(frame, text="Max Charge Rate 2:").grid(row=38, column=0, sticky=tk.W) #TO BE UPDATED
+ttk.Checkbutton(frame, text="Max Charge Rate", variable=max_charge_rate_taguchi).grid(row=10, column=3, sticky=tk.W)
+ttk.Label(frame, text="Max Charge Rate 2:").grid(row=11, column=3, sticky=tk.W) #TO BE UPDATED
 max_charge_rate2_entry = ttk.Entry(frame)
-max_charge_rate2_entry.grid(row=38, column=1)
+max_charge_rate2_entry.grid(row=11, column=4)
 max_charge_rate2_entry.insert(0, "0.95")
 
-ttk.Checkbutton(frame, text="Pearl Rate", variable=pearl_rate_taguchi).grid(row=39, column=0, sticky=tk.W)
-ttk.Label(frame, text="Pearl Rate 2:").grid(row=40, column=0, sticky=tk.W) #TO BE UPDATED
+ttk.Checkbutton(frame, text="Pearl Rate", variable=pearl_rate_taguchi).grid(row=12, column=3, sticky=tk.W)
+ttk.Label(frame, text="Pearl Rate 2:").grid(row=13, column=3, sticky=tk.W) #TO BE UPDATED
 pearl_rate2_entry = ttk.Entry(frame)
-pearl_rate2_entry.grid(row=40, column=1)
+pearl_rate2_entry.grid(row=13, column=4)
 pearl_rate2_entry.insert(0, "0.95")
+
+ttk.Label(frame, text="").grid(row=14, column=3, columnspan=2)
+
+ttk.Label(frame, text="Experiment Objective:").grid(row=15, column=3, sticky=tk.W) #TO BE UPDATED
+charge_station_location_combo = ttk.Combobox(frame, values=["Units Collected per Hour", "Average Robot Utilization", "Total Distance Taken"])
+charge_station_location_combo.grid(row=16, column=3, columnspan=2)
+charge_station_location_combo.set("Total Distance Taken")
 
 # Simulation button
 run_button = ttk.Button(frame, text="Run Simulation", command=run_simulation)
-run_button.grid(row=50, column=0, columnspan=2)
+run_button.grid(row=50, column=1, columnspan=3)
 
 # Result label
 result_label = ttk.Label(frame, text="")
-result_label.grid(row=51, column=0, columnspan=2)
+result_label.grid(row=51, column=1, columnspan=3)
 
 app.mainloop()
