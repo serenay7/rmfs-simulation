@@ -81,10 +81,10 @@ def run_simulation():
         simulation.MultiCycleVRP(cycle_amount,cycle_runtime, printOutput=True)
     
     elif do_tg==1:
-        print("taguchi is working")
+
+        exp_obj = experiment_objective_combo.get()
 
         experiment = ff2n(parameter_count)
-        print(experiment)
         
         for i in range(len(experiment)):
             for j in range(len(experiment[i])):
@@ -142,7 +142,6 @@ def run_simulation():
             pearl_rates = [pearl_rate]
         
         exp_array[:, cols] = experiment
-        print(exp_array)
 
         for i in range(len(experiment)):
             a = int(exp_array[i,0]) #pick station
@@ -161,9 +160,7 @@ def run_simulation():
             exp_array[i,4] = max_charge_rates[e]
 
             f = int(exp_array[i,5]) #max charge rate
-            exp_array[i,5] = max_charge_rates[f]
-            
-            print(exp_array)
+            exp_array[i,5] = pearl_rates[f]
 
         exp_df = pd.DataFrame(data = exp_array,   
                   columns = ['Pick Station Amount', 'Charge Station Amount', 'Robot Amount', 'Charge Flag Rate', 'Max Charge Rate', 'Pearl Rate']) 
@@ -172,7 +169,10 @@ def run_simulation():
 
         exp_df.to_excel(writer, sheet_name='Experiment', index=False)
 
+        simulationhours = (cycle_amount*cycle_runtime)/(60*60)
         total_steps_list = []
+        units_per_hour_list = []
+        robot_utilization_list = []
 
         for i in range(len(experiment)):
 
@@ -205,7 +205,15 @@ def run_simulation():
 
             sheet1, sheet2 = simulation.TaguchiVRP(cycle_amount,cycle_runtime, printOutput=True)
 
-            print(sheet1)
+            total_rows = len(sheet1)
+            extract_count = sheet1[sheet1['robotStatus'] == 'extract'].shape[0]
+            utilization = extract_count /(total_rows*robot_amount)
+            robot_utilization_list.append(utilization)
+
+            station_rows = sheet2[sheet2['Statistics'].str.startswith('Station')]
+            units_per_hour = station_rows['Value'].sum()
+            units_per_hour_list.append(units_per_hour)
+            print(units_per_hour_list)
 
             max_steps_per_robot = sheet1.groupby('robotID')['stepsTaken'].max()
             total_steps = max_steps_per_robot.sum()
@@ -215,11 +223,25 @@ def run_simulation():
             sheet1.to_excel(writer, sheet_name=f'TimeSeries{i+1}', index=False)
             sheet2.to_excel(writer, sheet_name=f'Observed{i+1}', index=False)
 
+        utilization_df = pd.DataFrame({'RobotUtilization': total_steps_list})
+        utilization_df.to_excel(writer, sheet_name='RobotUtilization', index=False)
+
         total_steps_df = pd.DataFrame({'TotalSteps': total_steps_list})
         total_steps_df.to_excel(writer, sheet_name='TotalSteps', index=False)
 
-        min_index = total_steps_df['TotalSteps'].idxmin()
-        print('Best Experiment:', min_index+1)
+        units_per_hour_list = [val / (simulationhours) for val in units_per_hour_list]
+        print(units_per_hour_list)
+        uph_df = pd.DataFrame({'UPH': units_per_hour_list})
+        uph_df.to_excel(writer, sheet_name='UPH', index=False)
+
+        min_index_steps = total_steps_df['TotalSteps'].idxmin()
+        print('Best Experiment for Total Steps:', min_index_steps+1)
+
+        max_index_uph = uph_df['UPH'].idxmax()
+        print('Best Experiment for UPH:', max_index_uph+1)
+
+        max_index_utilization = utilization_df['RobotUtilization'].idxmax()
+        print('Best Experiment for Robot Utilization:', max_index_utilization+1)
 
         writer._save()
         print("run is over")
@@ -408,9 +430,9 @@ pearl_rate2_entry.insert(0, "0.95")
 ttk.Label(frame, text="").grid(row=14, column=3, columnspan=2)
 
 ttk.Label(frame, text="Experiment Objective:").grid(row=15, column=3, sticky=tk.W) #TO BE UPDATED
-charge_station_location_combo = ttk.Combobox(frame, values=["Units Collected per Hour", "Average Robot Utilization", "Total Distance Taken"])
-charge_station_location_combo.grid(row=16, column=3, columnspan=2)
-charge_station_location_combo.set("Total Distance Taken")
+experiment_objective_combo = ttk.Combobox(frame, values=["Units Collected per Hour", "Average Robot Utilization", "Total Distance Taken"])
+experiment_objective_combo.grid(row=16, column=3, columnspan=2)
+experiment_objective_combo.set("Total Distance Taken")
 
 # Simulation button
 run_button = ttk.Button(frame, text="Run Simulation", command=run_simulation)
