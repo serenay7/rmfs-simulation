@@ -141,7 +141,7 @@ def run_simulation():
         else:
             pearl_rates = [pearl_rate]
         
-        exp_array[:, cols] = experiment
+        exp_array[:, cols] = experiments
 
         for i in range(len(experiment)):
             a = int(exp_array[i,0]) #pick station
