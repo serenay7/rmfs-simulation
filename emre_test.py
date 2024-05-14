@@ -39,6 +39,7 @@ class RMFS_Model():
         self.selectedPodsList = []
         self.satisfiedList = []
         self.totalPodNumber = 0
+        self.totalPodStationDist = 0
     def createPods(self):
         podNodes = list(self.podGraph.nodes)
 
@@ -276,25 +277,53 @@ class RMFS_Model():
                 tempTask = ExtractTask(env=self.env, robot=None, outputstation=self.OutputStations[station_idx], pod=selectedPodsList[pod_idx])
                 taskList.append(tempTask)
             return taskList
-        return podAndStation_distance, combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance
+
+        taskList = []
+        for pod_idx, station_idx in enumerate(assigned_stations):
+            tempTask = ExtractTask(env=self.env, robot=None, outputstation=self.OutputStations[station_idx],
+                                   pod=selectedPodsList[pod_idx])
+            taskList.append(tempTask)
+
+        return podAndStation_distance, combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance, taskList
 
 
 
     def PhaseIExperiment(self, orderList, max_percentage=0.5, returnSelected=False):
+        def manhattan_distance(tuple1, tuple2):
+            return sum(abs(a - b) for a, b in zip(tuple1, tuple2))
 
         # Assignment by Hungarian Method Part
         selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(orderList,satisfiedReturn=True)
-        PS_distance, PS_combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance = self.podSelectionHungarian(selectedPodsList, max_percentage)
+        PS_distance, PS_combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance, taskList = self.podSelectionHungarian(selectedPodsList, max_percentage)
         numSelectedPodsP1 = len(selectedPodsList)
 
+        totalDistHungarian = 0
+        for task in taskList:
+            totalDistHungarian += manhattan_distance(task.pod.fixedLocation, task.outputstation.location)
+
         # Rawsimo default assignment
-        def manhattan_distance(tuple1, tuple2):
-            return sum(abs(a - b) for a, b in zip(tuple1, tuple2))
+
 
         def sum_manhattan_distance(target_tuple, listPods):
             return sum(manhattan_distance(target_tuple, t.location) for t in listPods)
 
-        orderListDivided = np.reshape(orderList, newshape=(len(self.OutputStations), orderList.shape[0] // len(self.OutputStations), orderList.shape[1]))
+        #orderListDivided = np.reshape(orderList, newshape=(len(self.OutputStations), orderList.shape[0] // len(self.OutputStations), orderList.shape[1]))
+
+        rows_per_station = orderList.shape[0] // len(self.OutputStations)
+
+        # Initialize a list to store the divided arrays
+        orderListDivided = []
+
+        # Iterate over the output stations
+        for i in range(len(self.OutputStations)):
+            # Calculate the start and end indices for the current output station
+            start_index = i * rows_per_station
+            end_index = (i + 1) * rows_per_station if i < len(self.OutputStations) - 1 else None
+
+            # Extract the rows for the current output station and append to the list
+            orderListDivided.append(orderList[start_index:end_index])
+
+
         numSelectedPodsRawsimo = 0
         totalDistRawsimo = 0
         selectedPodsListRawsimo = []
@@ -306,8 +335,8 @@ class RMFS_Model():
             tempList = self.podSelectionMaxHitRate(itemListDivided)
 
             selectedPodsListRawsimo.extend(tempList)
-            numSelectedPodsRawsimo += len(selectedPodsListRawsimo)
-            totalDistRawsimo += sum_manhattan_distance(stationLocation, selectedPodsListRawsimo)
+            numSelectedPodsRawsimo += len(tempList)
+            totalDistRawsimo += sum_manhattan_distance(stationLocation, tempList)
 
         if returnSelected:
             return selectedPodsList, numSelectedPodsP1, int(total_distance), selectedPodsListRawsimo, numSelectedPodsRawsimo, totalDistRawsimo
@@ -545,9 +574,14 @@ class RMFS_Model():
                 for task in robot.taskList:
                     notDeliveredPods.append(task.pod)
 
+        self.podStationDistCalculate(notDeliveredPods=notDeliveredPods)
+
         tempList = []
         for p in notDeliveredPods:
-            idx = self.selectedPodsList.index(p)
+            try:
+                idx = self.selectedPodsList.index(p)
+            except:
+                a = 10
             for sku, value in self.satisfiedList[idx].items():
                 tempList.append([sku, value])
 
@@ -713,9 +747,10 @@ class RMFS_Model():
         for robot in self.Robots:
             if robot.taskList:
                 remainingTasks.extend(robot.taskList)
-
-        self.fixedLocationVRP(remainingTasks, assign=True)
-
+        if self.TaskAssignmentPolicy == "vrp":
+            self.fixedLocationVRP(remainingTasks, assign=True)
+        elif self.TaskAssignmentPolicy == "rl":
+            self.fixedLocationRL(remainingTasks, assign=True)
         """
         self.env._queue = []
 
@@ -797,6 +832,9 @@ class RMFS_Model():
             df.loc[len(df)] = new_row
 
         new_row = {'Statistics': "SelectedPodNum", 'Value': self.totalPodNumber}
+        df.loc[len(df)] = new_row
+
+        new_row = {'Statistics': "TotalPodStationDistance", 'Value': self.totalPodStationDist}
         df.loc[len(df)] = new_row
 
         return df
@@ -909,6 +947,24 @@ class RMFS_Model():
             df.to_excel(writer, sheet_name='Sheet2', index=False)
             writer._save()
 
+    def podStationDistCalculate(self, notDeliveredPods):
+        def manhattan_distance(tuple1, tuple2):
+            return sum(abs(a - b) for a, b in zip(tuple1, tuple2))
+
+        if self.TaskAssignmentPolicy == "vrp" or self.TaskAssignmentPolicy == "rl":
+            for task in self.extractTaskList:
+                if task.pod not in notDeliveredPods:
+                    self.totalPodStationDist += 2 * manhattan_distance(task.pod.fixedLocation, task.outputstation.location)
+        elif self.TaskAssignmentPolicy == "rawsimo":
+            tempTaskList = []
+            for lst in self.extractTaskList:
+                tempTaskList.extend(lst)
+
+            for task in tempTaskList:
+                if task.pod not in notDeliveredPods:
+                    self.totalPodStationDist += 2 * manhattan_distance(task.pod.fixedLocation, task.outputstation.location)
+        else:
+            raise Exception("Unknown TaskAssignmentPolicy")
     def TaguchiVRP(self, numCycle, cycleSeconds, printOutput=False, allItemList = None, numOrderPerCycle=30):
 
         self.numCycle = numCycle
@@ -973,6 +1029,8 @@ class RMFS_Model():
             if robot.taskList:
                 for task in robot.taskList:
                     notDeliveredPods.append(task.pod)
+
+        self.podStationDistCalculate(notDeliveredPods=notDeliveredPods)
 
         tempList = []
         for p in notDeliveredPods:
@@ -1147,7 +1205,7 @@ class RMFS_Model():
 
 
 
-    def fixedLocationRL(self, assign=True):
+    def fixedLocationRL(self, taskList, assign=True):
         max_y = self.network.graph["cols"]-1
         max_x = self.network.graph["rows"]-1
 
@@ -1210,14 +1268,14 @@ class RMFS_Model():
         self.totalPodNumber += len(selectedPodsList)
         start = time.time()
         self.extractTaskList = extractTaskList
-        self.fixedLocationRL(assign=True)
+        self.fixedLocationRL(assign=True, taskList=extractTaskList)
         end = time.time()
         print("VRP TIME: ", end - start)
 
-        for i in range(1, cycleSeconds+1):
+        for i in range(1, cycleSeconds + 1):
             self.env.process(self.updateCharge(t=i, updateTime=1))
 
-        for i in range(0, self.cycleSeconds//60 + 1):
+        for i in range(0, self.cycleSeconds // 60 + 1):
             self.env.process(self.collectTimeStat(t=i, cycleSeconds=cycleSeconds))
 
         if cycleIdx == 0:
@@ -1425,7 +1483,7 @@ def RawsimovsVRPvsRLexp(numOrderPerCycle, network, OutputLocations, ChargeLocati
     anomalyModel.distanceMatrixCalculate()
 
     env3 = simpy.Environment()
-    RlModel = RMFS_Model(env=env2, network=network, TaskAssignmentPolicy="rl", ChargePolicy="pearl")
+    RlModel = RMFS_Model(env=env3, network=network, TaskAssignmentPolicy="rl", ChargePolicy="pearl")
     RlModel.Pods = copy.deepcopy(rawsimoModel.Pods)
     RlModel.SKUs = copy.deepcopy(rawsimoModel.SKUs)
     RlModel.createChargingStations(ChargeLocations)
@@ -1442,15 +1500,86 @@ def RawsimovsVRPvsRLexp(numOrderPerCycle, network, OutputLocations, ChargeLocati
     anomalyModel.MultiCycleVRP(numCycle=numCycle, cycleSeconds=cycleSeconds, printOutput=True, allItemList=allItemList)
     RlModel.MultiCycleRL(numCycle=numCycle, cycleSeconds=cycleSeconds, printOutput=True, allItemList=allItemList)
 
+def oneCycleVRPvsRL(numTask, network, OutputLocations, ChargeLocations, RobotLocations):
+    env1 = simpy.Environment()
+
+    RlModel = RMFS_Model(env=env1, network=network, TaskAssignmentPolicy="rl", ChargePolicy="pearl")
+    RlModel.createPods()
+    RlModel.createSKUs()
+    RlModel.fillPods()
+    RlModel.createChargingStations(ChargeLocations)
+    RlModel.createRobots(RobotLocations)
+    RlModel.createOutputStations(OutputLocations)
+    RlModel.distanceMatrixCalculate()
+
+
+    env2 = simpy.Environment()
+    anomalyModel = RMFS_Model(env=env2, network=network, TaskAssignmentPolicy="vrp", ChargePolicy="pearl")
+    anomalyModel.Pods = copy.deepcopy(RlModel.Pods)
+    anomalyModel.SKUs = copy.deepcopy(RlModel.SKUs)
+    anomalyModel.createChargingStations(ChargeLocations)
+    anomalyModel.createRobots(RobotLocations)
+    anomalyModel.createOutputStations(OutputLocations)
+    anomalyModel.distanceMatrixCalculate()
+
+    randomPodIndexList = random.sample(range(len(RlModel.Pods)), numTask)
+
+    selectedPodsList = [anomalyModel.Pods[i] for i in randomPodIndexList]
+    extractTaskListVRP = anomalyModel.podSelectionHungarian(selectedPodsList, outputTask=True)
+    anomalyModel.extractTaskList = extractTaskListVRP
+    anomalyModel.fixedLocationVRP(extractTaskListVRP, assign=True)
+
+    RlModel.extractTaskList = extractTaskListVRP
+    RlModel.fixedLocationRL(taskList=extractTaskListVRP, assign=True)
+
+    for robot in RlModel.Robots:
+        if robot.taskList:
+            RlModel.env.process(robot.DoExtractTask(robot.taskList[0]))
+        else:
+            RlModel.env.process(robot.goRest())
+
+
+
+    for robot in anomalyModel.Robots:
+        if robot.taskList:
+            anomalyModel.env.process(robot.DoExtractTask(robot.taskList[0]))
+        else:
+            anomalyModel.env.process(robot.goRest())
+
+    env1.run()
+    env2.run()
+
+    RlDist = 0
+    AnomalyDist = 0
+
+
+    for robot in RlModel.Robots:
+        RlDist += robot.stepsTaken
+
+    for robot in anomalyModel.Robots:
+        AnomalyDist += robot.stepsTaken
+
+    print("RL task assignment steps taken: ", RlDist)
+    print("VRP task assignment steps taken: ", AnomalyDist)
+
 if __name__ == "__main__":
     env = simpy.Environment()
 
 
-    #rows = 13  4x8
+    #rows = 13  #4x8
     #columns = 41
 
     #rows = 16  #5x5
     #columns = 26
+
+    #rows = 19 #6x12
+    #columns = 61
+
+    #rows = 25 #8x8
+    #columns = 41
+
+    rows = 31 #10x20
+    columns = 101
 
     #rows = 10 #3x6
     #columns = 31
@@ -1458,15 +1587,15 @@ if __name__ == "__main__":
     #rows = 10 #3x3
     #columns = 16
 
-    rows=16 #5x15
-    columns=76
+    #rows=16 #5x15
+    #columns=76
 
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-    output = [(5, 15), (10, 15), (20, 15), (25, 15)]
-    charging = [(0, 9)]
-    robots = [(0, 8), (0, 0), (0, 7),(1, 8), (1, 9), (1, 0), (1, 7), (0, 4)]
-    output = [(0, 5), (15, 5)]
+    output = [(50, 30), (100, 15), (0, 15), (50, 0)]
+    charging = [(0, 30)]
+    robots = [(0, 0), (100, 0), (0, 30), (100, 30)]#, (0, 7), (1, 8)]# (1, 9), (1, 0), (1, 7), (0, 4), (15,0)]
+    #output = [(12, 15), (25, 7)]
     #layout.draw_network_with_shelves(rectangular_network, pos)
 
 
@@ -1474,10 +1603,10 @@ if __name__ == "__main__":
 
     # Rawsimo task assignment vs VRP aynı podları ikisine de veriyor, bir cycledaki toplam alınan mesafeyi veriyor
     # PhaseITaskAssignmentExperiment(numTask=30, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
-
+    #oneCycleVRPvsRL(numTask=30, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
     # Aynı orderları her cycleda veriyor ve her şeyi karşılaştırıyor; pod seçimi, task assignment ve şarj politikası
-    #PhaseIandIICompleteExperiment(numOrderPerCycle=23, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
-    RawsimovsVRPvsRLexp(numOrderPerCycle=23, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=5, cycleSeconds=900)
+    PhaseIandIICompleteExperiment(numOrderPerCycle=60, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
+    #RawsimovsVRPvsRLexp(numOrderPerCycle=23, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=5, cycleSeconds=900)
     a = 15
 
 
@@ -1499,21 +1628,21 @@ if __name__ == "__main__":
     startLocations = [(0, 8), (0, 5), (0, 0)]
     simulation.createRobots(startLocations)
 
-    firstStation = (0, 5)
-    secondStation = (20, 15)
-    thirdStation = (30, 15)
-    fourthStation = (40, 15)
-    locations = [firstStation]
+    firstStation = (50, 30)
+    secondStation = (100, 15)
+    thirdStation = (0, 15)
+    fourthStation = (50, 0)
+    locations = [firstStation, secondStation, thirdStation, fourthStation]
 
     simulation.createOutputStations(locations)
 
     simulation.fillPods()
     simulation.distanceMatrixCalculate()
 
-    orderlist = simulation.orderGenerator(20)
+    orderlist = simulation.orderGenerator(60)
     # Phase I pod selection karşılaştırması
-    #selectedPodsList, numSelectedPodsP1, total_distance, selectedPodsListRawsimo, numSelectedPodsRawsimo, totalDistRawsimo = simulation.PhaseIExperiment(orderList=orderlist, returnSelected=True)
-    #a = 10
+    selectedPodsList, numSelectedPodsP1, total_distance, selectedPodsListRawsimo, numSelectedPodsRawsimo, totalDistRawsimo = simulation.PhaseIExperiment(orderList=orderlist, returnSelected=True)
+    a = 10
 
 
     #simulation.Robots[0].batteryLevel = 41.6
@@ -1521,5 +1650,5 @@ if __name__ == "__main__":
 
     #simulation.MultiCycleVRP(5,900, printOutput=True, numOrderPerCycle=80)
     #simulation.MultiCycleRawSIMO(32,900, printOutput=True, numOrderPerCycle=100)
-    simulation.MultiCycleRL(5, 900, printOutput=True, numOrderPerCycle=80)
+    #simulation.MultiCycleRL(32, 900, printOutput=True, numOrderPerCycle=23)
 
