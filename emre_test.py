@@ -58,7 +58,7 @@ class RMFS_Model():
 
     def fillPods(self):
 
-        pod_mean = 3 # Mean number of pods in which an SKU is stored
+        pod_mean = 3 #8 Mean number of pods in which an SKU is stored #BUNU SKU SAYISINA BAĞLA
         pod_std = 1 # Standard deviation of pods in which an SKU is stored
 
         sku_mean = 7 # Mean number of sku which are stored in a pod
@@ -144,7 +144,8 @@ class RMFS_Model():
             tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx,
                               currentNode=loc, taskList=[], batteryLevel=max_battery, chargingRate=charging_rate,
                               Model=self, ChargeFlagRate=charge_flag_rate, MaxChargeRate=max_charge_rate,
-                              PearlRate=pearl_rate, RestRate=rest_rate, chargingStationList=self.ChargingStations)
+                              PearlRate=pearl_rate, RestRate=rest_rate, chargingStationList=self.ChargingStations
+                              )
             self.Robots.append(tempRobot)
 
 
@@ -785,6 +786,7 @@ class RMFS_Model():
             for robot in self.Robots:
                 uncompletedTasks.extend(robot.taskList)
             completedTasks = [task for task in self.extractTaskList if task not in uncompletedTasks]
+            self.totalPodNumber += len(completedTasks)
 
             for task in completedTasks:
                 idx = self.selectedPodsList.index(task.pod)
@@ -801,6 +803,7 @@ class RMFS_Model():
                 fullTaskList.extend(lst)
 
             completedTasks = [task for task in fullTaskList if task not in uncompletedTasks]
+            self.totalPodNumber += len(completedTasks)
 
             allSelectedPods = []
             allSatisfiedSKUs = []
@@ -883,7 +886,7 @@ class RMFS_Model():
         start = time.time()
         selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemlist, satisfiedReturn=True)
         extractTaskList = self.podSelectionHungarian(selectedPodsList, outputTask=True)
-        self.totalPodNumber += len(selectedPodsList)
+        #self.totalPodNumber += len(selectedPodsList)
         end = time.time()
         print("POD SELECTION TIME: ", end-start)
         start = time.time()
@@ -1094,7 +1097,7 @@ class RMFS_Model():
         allTasks = []
         for lst in self.extractTaskList:
             allTasks.extend(lst)
-        self.totalPodNumber += len(allTasks)
+        #self.totalPodNumber += len(allTasks)
 
 
 
@@ -1265,7 +1268,7 @@ class RMFS_Model():
 
         selectedPodsList, satisfiedList = self.podSelectionMaxHitRate(itemlist, satisfiedReturn=True)
         extractTaskList = self.podSelectionHungarian(selectedPodsList, outputTask=True)
-        self.totalPodNumber += len(selectedPodsList)
+        #self.totalPodNumber += len(selectedPodsList)
         start = time.time()
         self.extractTaskList = extractTaskList
         self.fixedLocationRL(assign=True, taskList=extractTaskList)
@@ -1500,7 +1503,7 @@ def RawsimovsVRPvsRLexp(numOrderPerCycle, network, OutputLocations, ChargeLocati
     anomalyModel.MultiCycleVRP(numCycle=numCycle, cycleSeconds=cycleSeconds, printOutput=True, allItemList=allItemList)
     RlModel.MultiCycleRL(numCycle=numCycle, cycleSeconds=cycleSeconds, printOutput=True, allItemList=allItemList)
 
-def oneCycleVRPvsRL(numTask, network, OutputLocations, ChargeLocations, RobotLocations):
+def oneCycleVRPvsRL(numTask, network, OutputLocations, ChargeLocations, RobotLocations, returnStat=False):
     env1 = simpy.Environment()
 
     RlModel = RMFS_Model(env=env1, network=network, TaskAssignmentPolicy="rl", ChargePolicy="pearl")
@@ -1527,10 +1530,19 @@ def oneCycleVRPvsRL(numTask, network, OutputLocations, ChargeLocations, RobotLoc
     selectedPodsList = [anomalyModel.Pods[i] for i in randomPodIndexList]
     extractTaskListVRP = anomalyModel.podSelectionHungarian(selectedPodsList, outputTask=True)
     anomalyModel.extractTaskList = extractTaskListVRP
+
+    start = time.time()
     anomalyModel.fixedLocationVRP(extractTaskListVRP, assign=True)
+    end = time.time()
+    vrpTime = end - start
+    print("VRP TIME: ", vrpTime)
 
     RlModel.extractTaskList = extractTaskListVRP
+    start = time.time()
     RlModel.fixedLocationRL(taskList=extractTaskListVRP, assign=True)
+    end = time.time()
+    rlTime = end - start
+    print("RL TIME: ", rlTime)
 
     for robot in RlModel.Robots:
         if robot.taskList:
@@ -1562,6 +1574,9 @@ def oneCycleVRPvsRL(numTask, network, OutputLocations, ChargeLocations, RobotLoc
     print("RL task assignment steps taken: ", RlDist)
     print("VRP task assignment steps taken: ", AnomalyDist)
 
+    if returnStat:
+        return AnomalyDist, RlDist, vrpTime, rlTime
+
 if __name__ == "__main__":
     env = simpy.Environment()
 
@@ -1572,14 +1587,14 @@ if __name__ == "__main__":
     #rows = 16  #5x5
     #columns = 26
 
-    #rows = 19 #6x12
-    #columns = 61
+    rows = 19 #6x12
+    columns = 61
 
     #rows = 25 #8x8
     #columns = 41
 
-    rows = 31 #10x20
-    columns = 101
+    #rows = 31 #10x20
+    #columns = 101
 
     #rows = 10 #3x6
     #columns = 31
@@ -1590,11 +1605,14 @@ if __name__ == "__main__":
     #rows=16 #5x15
     #columns=76
 
+    #rows=31 #10x10
+    #columns = 51
+
     rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
     layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-    output = [(50, 30), (100, 15), (0, 15), (50, 0)]
-    charging = [(0, 30)]
-    robots = [(0, 0), (100, 0), (0, 30), (100, 30)]#, (0, 7), (1, 8)]# (1, 9), (1, 0), (1, 7), (0, 4), (15,0)]
+    output = [(20, 12), (40, 6)]#, (20,0), (0,6)]
+    charging = [(0, 12)]
+    robots = [(0, 0), (40, 0)]#, (0,12), (40,12)]#, (0,30), (100,30)]#, (0, 7), (1, 8)]# (1, 9), (1, 0), (1, 7), (0, 4), (15,0)]
     #output = [(12, 15), (25, 7)]
     #layout.draw_network_with_shelves(rectangular_network, pos)
 
@@ -1603,9 +1621,31 @@ if __name__ == "__main__":
 
     # Rawsimo task assignment vs VRP aynı podları ikisine de veriyor, bir cycledaki toplam alınan mesafeyi veriyor
     # PhaseITaskAssignmentExperiment(numTask=30, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
-    #oneCycleVRPvsRL(numTask=30, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots)
+
+    for numTask in [20, 40]:
+        totalVRPDist = 0
+        totalRlDist = 0
+        totalVRPtime = 0
+        totalRLtime = 0
+        for i in range(10):
+            vrpDist, RlDist, vrpTime, rlTime = oneCycleVRPvsRL(numTask=numTask, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, returnStat=True)
+            totalVRPDist += vrpDist
+            totalRlDist += RlDist
+            totalVRPtime += vrpTime
+            totalRLtime += rlTime
+        print("NUMTASK: ",numTask)
+        avgVRPDist = totalVRPDist/10
+        avgRlDist = totalRlDist/10
+        avgVRPtime = totalVRPtime/10
+        avgRLtime = totalRLtime/10
+        print("avgVRPDist: ",avgVRPDist)
+        print("avgRlDist: ", avgRlDist)
+        print("avgVRPtime: ", avgVRPtime)
+        print("avgRLtime: ", avgRLtime)
+
+
     # Aynı orderları her cycleda veriyor ve her şeyi karşılaştırıyor; pod seçimi, task assignment ve şarj politikası
-    PhaseIandIICompleteExperiment(numOrderPerCycle=60, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
+    #PhaseIandIICompleteExperiment(numOrderPerCycle=20, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=32, cycleSeconds=900)
     #RawsimovsVRPvsRLexp(numOrderPerCycle=23, network=rectangular_network, OutputLocations=output, ChargeLocations=charging, RobotLocations=robots, numCycle=5, cycleSeconds=900)
     a = 15
 
@@ -1625,21 +1665,21 @@ if __name__ == "__main__":
 
     simulation.createChargingStations([(0, 9)])
     #startLocations = [(0, 8), (5, 0), (10, 9), (15, 0), (5, 6), (1, 8), (5, 2), (10, 8), (15, 1)]
-    startLocations = [(0, 8), (0, 5), (0, 0)]
+    startLocations = [(0, 0), (50, 30)]
     simulation.createRobots(startLocations)
 
-    firstStation = (50, 30)
-    secondStation = (100, 15)
-    thirdStation = (0, 15)
-    fourthStation = (50, 0)
-    locations = [firstStation, secondStation, thirdStation, fourthStation]
+    firstStation = (25, 30)
+    secondStation = (50, 15)
+    thirdStation = (20, 0)
+    fourthStation = (0, 6)
+    locations = [firstStation, secondStation]
 
     simulation.createOutputStations(locations)
 
     simulation.fillPods()
     simulation.distanceMatrixCalculate()
 
-    orderlist = simulation.orderGenerator(60)
+    orderlist = simulation.orderGenerator(20)
     # Phase I pod selection karşılaştırması
     selectedPodsList, numSelectedPodsP1, total_distance, selectedPodsListRawsimo, numSelectedPodsRawsimo, totalDistRawsimo = simulation.PhaseIExperiment(orderList=orderlist, returnSelected=True)
     a = 10
