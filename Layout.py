@@ -3,12 +3,6 @@ import matplotlib.pyplot as plt
 import Entities
 
 
-def create_rectangular_network(rows, columns):
-    G = nx.grid_2d_graph(rows, columns)
-    pos = dict((node, node) for node in G.nodes())
-    return G, pos
-
-
 def place_shelf(network, start_pos, shelf_dimensions=(2, 4)):
     rows, cols = shelf_dimensions
     for r in range(rows):

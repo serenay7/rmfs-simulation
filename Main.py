@@ -3,17 +3,13 @@ import numpy as np
 import pandas as pd
 import simpy
 from simpy.events import AllOf
-import generators
 from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, StorageTask, SKU, ChargingStation
-import layout
+import Layout
 import random
-import ast
-from lp_podselection import podAndStation_combination, calculate_total_distances_for_all_requirements, min_max_diff, check_feasibility, columnMultiplication, assign_pods_to_stations
+from PodSelection import podAndStation_combination, calculate_total_distances_for_all_requirements, min_max_diff, check_feasibility, columnMultiplication, assign_pods_to_stations
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 import networkx as nx
-import vrp
-import math
 import copy
 from RL_test import VRPDatasetNew
 from torch.utils.data import DataLoader, Dataset
@@ -476,6 +472,43 @@ class RMFS_Model():
                         robot.taskList.append(tempTask)
                     idx += 1
 
+        def print_solution(data, manager, routing, solution):
+            """Prints solution on console."""
+            output_list = [solution.ObjectiveValue()]
+            print(f"Objective: {solution.ObjectiveValue()}")
+            max_route_distance = 0
+
+            for vehicle_id in range(data["num_vehicles"]):
+                output_list.append(vehicle_id)
+
+                index = routing.Start(vehicle_id)
+                plan_output = f"Route for vehicle {vehicle_id}:\n"
+                route_distance = 0
+                # route_array = np.array([index])
+                route_array = np.array([])
+
+                while not routing.IsEnd(index):
+                    plan = manager.IndexToNode(index)
+                    plan_output += f" {manager.IndexToNode(index)} -> "
+                    previous_index = index
+                    index = solution.Value(routing.NextVar(index))
+                    route_distance += routing.GetArcCostForVehicle(
+                        previous_index, index, vehicle_id
+                    )
+                    route_array = np.append(route_array, plan)
+
+                last = manager.IndexToNode(index)
+                plan_output += f"{manager.IndexToNode(index)}\n"
+                route_array = np.append(route_array, last)
+                output_list.append(route_array)
+                plan_output += f"Distance of the route: {route_distance}m\n"
+                output_list.append(route_distance)
+                print(plan_output)
+                max_route_distance = max(route_distance, max_route_distance)
+            print(f"Maximum of the route distances: {max_route_distance}m")
+
+            return output_list
+
 
         distMatrixModified, start_index, end_index, task_dict = distanceMatrixModify(taskList,start_nodes,end_nodes)
         data = create_data_model(distMatrixModified, start_index, end_index)
@@ -540,7 +573,7 @@ class RMFS_Model():
             allRoutes = createRoutes(data=data, manager=manager, routing=routing)
             if assign:
                 assignTasks(allRoutes, task_dict)
-            dflist = vrp.print_solution(data, manager, routing, solution)
+            dflist = print_solution(data, manager, routing, solution)
             return data, manager, routing, solution, dflist
         else:
             raise Exception("VRP solution not found.")
@@ -944,7 +977,7 @@ class RMFS_Model():
         if printOutput:
             #self.timeStatDF.to_excel('outputVRP.xlsx', index=False)
             #cycle başında ve sonu üst üste gelince duplicate var
-            writer = pd.ExcelWriter('outputVRP.xlsx', engine='xlsxwriter')
+            writer = pd.ExcelWriter('experiment/outputVRP.xlsx', engine='xlsxwriter')
             self.timeStatDF.to_excel(writer, sheet_name='Sheet1', index=False)
             df = self.calculateObservationStat()
             df.to_excel(writer, sheet_name='Sheet2', index=False)
@@ -1147,7 +1180,7 @@ class RMFS_Model():
             self.env.run(until=self.env.now + cycleSeconds)
             self.addCollectedSKUCount()
         if printOutput:
-            writer = pd.ExcelWriter('outputRAWSIMO.xlsx', engine='xlsxwriter')
+            writer = pd.ExcelWriter('experiment/outputRAWSIMO.xlsx', engine='xlsxwriter')
             #self.timeStatDF.to_excel('outputRAWSIMO.xlsx', index=False)
             self.timeStatDF.to_excel(writer, sheet_name='Sheet1', index=False)
             df = self.calculateObservationStat()
@@ -1318,7 +1351,7 @@ class RMFS_Model():
         if printOutput:
             #self.timeStatDF.to_excel('outputVRP.xlsx', index=False)
             #cycle başında ve sonu üst üste gelince duplicate var
-            writer = pd.ExcelWriter('outputRL.xlsx', engine='xlsxwriter')
+            writer = pd.ExcelWriter('experiment/outputRL.xlsx', engine='xlsxwriter')
             self.timeStatDF.to_excel(writer, sheet_name='Sheet1', index=False)
             df = self.calculateObservationStat()
             df.to_excel(writer, sheet_name='Sheet2', index=False)

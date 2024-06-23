@@ -1,8 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 import simpy
-from emre_test import RMFS_Model
-from interface_initializer import station_location, robot_location
+from Main import RMFS_Model
+from InterfaceInitializer import station_location, robot_location
 from pyDOE3 import *
 import sys
 
@@ -11,9 +11,9 @@ import pandas as pd
 from simpy.events import AllOf
 
 from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, StorageTask, SKU, ChargingStation
-import layout
+import Layout
 
-from lp_podselection import podAndStation_combination, calculate_total_distances_for_all_requirements, min_max_diff, check_feasibility, columnMultiplication, assign_pods_to_stations
+from PodSelection import podAndStation_combination, calculate_total_distances_for_all_requirements, min_max_diff, check_feasibility, columnMultiplication, assign_pods_to_stations
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 import networkx as nx
@@ -165,7 +165,7 @@ def run_simulation():
         exp_df = pd.DataFrame(data = exp_array,   
                   columns = ['Pick Station Amount', 'Charge Station Amount', 'Robot Amount', 'Charge Flag Rate', 'Max Charge Rate', 'Pearl Rate']) 
         
-        writer = pd.ExcelWriter('TaguchiVRP.xlsx', engine='xlsxwriter')
+        writer = pd.ExcelWriter('experiment/TaguchiVRP.xlsx', engine='xlsxwriter')
 
         exp_df.to_excel(writer, sheet_name='Experiment', index=False)
 

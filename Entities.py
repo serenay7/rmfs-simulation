@@ -1,6 +1,6 @@
 import simpy
 import networkx as nx
-import layout as layout
+import Layout as layout
 from simpy.events import AllOf
 import inspect
 

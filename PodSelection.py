@@ -1,15 +1,4 @@
 import numpy as np
-import pandas as pd
-import simpy
-from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, StorageTask
-import layout
-import random
-import ast
-from scipy.optimize import linear_sum_assignment
-from vrp import distanceMatrixCreate
-import rawsimo
-import generators
-import podstorage
 
 
 def podAndStation_combination_recursive(pods, stations, current_distribution=[], all_distributions=[]):
@@ -129,20 +118,6 @@ def calculate_total_distances_for_all_requirements(distanceMatrix, PS_combinatio
     return total_distances
 
 
-def podSelectionLP(itemList, podDict, podMatrix, satisfiedReturn = False):
-    selectedPodNodes = []
-    satisfiedList = []
-    while len(itemList) > 0:
-        selected, satisfiedSKU = rawsimo.rawsimoPodSelectionExperiment(itemList=itemList, podMatrix=podMatrix)
-        itemList = [sublist for sublist in itemList if sublist[0] not in satisfiedSKU]
-        selectedNode = podDict[selected]
-        selectedPodNodes.append(selectedNode)
-        satisfiedList.append(satisfiedSKU)
-    if satisfiedReturn:
-        return selectedPodNodes, satisfiedList
-
-    return selectedPodNodes
-
 
 def mainPodAssignment(pod_nodes, station_nodes, max_percentage):
     no_of_pods = len(pod_nodes)
@@ -205,52 +180,6 @@ def mainPodAssignment(pod_nodes, station_nodes, max_percentage):
     return podAndStation_distance, combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance
 
 
-def PhaseIExperiment(orderList, podMatrix, network, stationNodes, max_percentage=0.5, returnSelected=False):
-    # bizim assignment problem kısmı
-    itemList = np.sum(orderList, axis=0)
-    itemList = [[sku, int(amount)] for sku, amount in enumerate(itemList)]
-    nodesDict = network._node  # kendi node değişkeninden farklı, pod olup olmadığının bilgisini de dict olarak veriyor
-    shelvesNetworkNodes = {k: v for k, v in nodesDict.items() if v == {'shelf': True}}.keys()
-    # podların indexi ve nodelar arasındaki bağlantıyı gösteren dictionary, pod listesindeki sıraya göre podları labellıyor
-    podDict = {k: v for k, v in enumerate(shelvesNetworkNodes)}
-    selectedPodNodes, satisfiedList = podSelectionLP(itemList, podDict, podMatrix, satisfiedReturn=True)
-
-    # bu kısım mainPodAssignment ile inputlar uyumlu olsun diye yapıldı
-    selectedPodNodes = [str(i) for i in selectedPodNodes]
-    selectedPodNodes = np.array(selectedPodNodes)
-    numSelectedPodsP1 = len(selectedPodNodes) #phase 1 çözümünde seçilen pod sayısı
-    PS_distance, PS_combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance = mainPodAssignment(
-        selectedPodNodes, stationNodes, max_percentage)
-    # assigned_stations hangi pod nereye atandı
-
-
-    # rawsimo kısmı
-    def manhattan_distance(tuple1, tuple2):
-        return sum(abs(a - b) for a, b in zip(tuple1, tuple2))
-
-    def sum_manhattan_distance(target_tuple, list_of_tuples):
-        return sum(manhattan_distance(target_tuple, t) for t in list_of_tuples)
-
-    orderListDivided = np.reshape(orderList, newshape=(len(stationNodes), orderList.shape[0] // len(stationNodes), orderList.shape[1]))
-    numSelectedPodsRawsimo = 0
-    totalDistRawsimo = 0
-    selectedPodNodesRawsimoAll = np.empty((0, 2))
-    for stationIdx, stationLocation in enumerate(stationNodes):
-        itemListDivided = np.sum(orderListDivided[stationIdx], axis=0)
-        itemListDivided = [[sku, int(amount)] for sku, amount in enumerate(itemListDivided)]
-        selectedPodNodesRawsimo = podSelectionLP(itemListDivided, podDict, podMatrix)
-        numSelectedPodsRawsimo += len(selectedPodNodesRawsimo)
-        totalDistRawsimo += sum_manhattan_distance(eval(stationLocation), selectedPodNodesRawsimo)
-
-        tempArr = np.array([str(i) for i in selectedPodNodesRawsimo])
-        new_column = np.full_like(tempArr, stationIdx)
-        result_array = np.column_stack((tempArr, new_column))
-        selectedPodNodesRawsimoAll = np.concatenate((selectedPodNodesRawsimoAll,result_array), axis=0)
-
-    if returnSelected:
-        return selectedPodNodes, numSelectedPodsP1, int(total_distance), selectedPodNodesRawsimoAll, numSelectedPodsRawsimo, totalDistRawsimo
-
-    return numSelectedPodsP1, int(total_distance), numSelectedPodsRawsimo, totalDistRawsimo
 
 def stationLocationFinder(network, numStation):
     nodes = list(network.nodes)
@@ -281,95 +210,3 @@ def stationLocationFinder(network, numStation):
 
     return np.array(station_nodes)
 
-def PhaseIExperimentOuter(networkList, numRepeatForInstance, orderPerStation=20):
-
-    resultDF = pd.DataFrame(columns=['Layout','SelectedPodsP1','TotalDistanceP1','SelectedPodsRawsimo','TotalDistanceRawsimo'])
-
-    for networkSTR in networkList:
-        print(networkSTR)
-        dimensions = networkSTR.split("x")
-        row = int(dimensions[0])
-        column = int(dimensions[1])
-        network, network_corridors = generators.create_network(vertical=row, horizontal=column)
-
-        r = row * column * 8  # Number of storage pods
-        s = r*2  # Number of SKUs
-        k = r*1//20  # Maximum number of pods for each SKU
-        lower_bound = 100  # Lower bound of the amount interval
-        upper_bound = 200  # Upper bound of the amount interval
-
-
-
-        for numStation in [2, 4]:
-            sum_numSelectedPodsP1 = 0
-            sum_total_distance = 0
-            sum_numSelectedPodsRawsimo = 0
-            sum_totalDistRawsimo = 0
-
-            for run in range(numRepeatForInstance):
-                orderList = generators.orderGenerator(stationCapacity=orderPerStation, numStation=numStation, numSKU=s, skuExistencethreshold=0.9)
-                podMatrix = podstorage.generate_distribution_matrix(s, r, k, lower_bound, upper_bound).T
-                station_nodes = stationLocationFinder(network, numStation)
-                numSelectedPodsP1, total_distance, numSelectedPodsRawsimo, totalDistRawsimo = PhaseIExperiment(orderList, podMatrix, network, station_nodes)
-
-                sum_numSelectedPodsP1 += numSelectedPodsP1
-                sum_total_distance += total_distance
-                sum_numSelectedPodsRawsimo += numSelectedPodsRawsimo
-                sum_totalDistRawsimo += totalDistRawsimo
-
-            avg_numSelectedPodsP1 = sum_numSelectedPodsP1 // numRepeatForInstance
-            avg_total_distance = sum_total_distance // numRepeatForInstance
-            avg_numSelectedPodsRawsimo = sum_numSelectedPodsRawsimo // numRepeatForInstance
-            avg_totalDistRawsimo = sum_totalDistRawsimo // numRepeatForInstance
-
-            resultDF = resultDF._append({'Layout': networkSTR, 'SelectedPodsP1': avg_numSelectedPodsP1, 'TotalDistanceP1': avg_total_distance, 'SelectedPodsRawsimo': avg_numSelectedPodsRawsimo, 'TotalDistanceRawsimo': avg_totalDistRawsimo}, ignore_index = True)
-
-    return resultDF
-
-if __name__ == "__main__":
-    """
-    rows = 10  # 3x3
-    columns = 16
-    rectangular_network, pos = koridor_deneme.create_rectangular_network_with_attributes(columns, rows)
-    koridor_deneme.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-    koridor_deneme.draw_network_with_shelves(rectangular_network, pos)
-    network_corridors = koridor_deneme.create_corridor_subgraph(rectangular_network)
-
-    distMatrix, nodes = distanceMatrixCreate(rectangular_network)
-    """
-    ###
-
-
-    station_nodes = np.array(['(0,0)', '(15,0)'])  # sol alt
-    pod_nodes = np.array(['(1,1)', '(1,4)', '(1,7)', '(6,1)', '(6,4)', '(6,7)', '(11,1)', '(11,4)', '(11,7)', ])
-    max_percentage = 0.5
-
-    # PS_distance, PS_combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance = mainPodAssignment(pod_nodes, station_nodes, max_percentage)
-
-    # requirements = np.array([7, 2])
-    # testMatrix = columnMultiplication(PS_distance, requirements)
-    # assigned_pods, assigned_stations, total_distance = assign_pods_to_stations(PS_distance, requirements)
-
-    # all_total_distances = calculate_total_distances_for_all_requirements(PS_distance, PS_combination)
-    # print("all total distances", all_total_distances)
-
-    s = 5  # Number of SKUs
-    r = 72  # Number of storage pods
-    n = 500  # Number of each SKU stored in the warehouse
-    k = 20  # Maximum number of pods for each SKU
-    lower_bound = 100  # Lower bound of the amount interval
-    upper_bound = 200  # Upper bound of the amount interval
-
-    rectangular_network, network_corridors = generators.create_network(3, 3)
-    stationLocationFinder(rectangular_network,2)
-
-
-    networkList = ["4x8", "5x5", "6x12", "8x8", "10x20"]
-    resultDF = PhaseIExperimentOuter(networkList,10)
-    resultDF.to_excel("PhaseIExperiment.xlsx")
-
-    #podMatrix = podstorage.generate_distribution_matrix(s, r, k, lower_bound, upper_bound).T
-    #orderList = generators.orderGenerator(5, 2, s, 5)
-    #numSelectedPodsP1, total_distance, numSelectedPodsRawsimo, totalDistRawsimo = PhaseIExperiment(orderList, podMatrix, rectangular_network, station_nodes)
-
-    a = 10
