@@ -1300,7 +1300,8 @@ class RMFS_Model():
 
         if assign is True:
             self.assignRLroutes(toursListSplit=toursListSplit, properRobots=properRobots)
-        b = 10
+        pass
+
     def startCycleRL(self, itemlist, cycleSeconds, cycleIdx):
 
         if cycleIdx != 0:
