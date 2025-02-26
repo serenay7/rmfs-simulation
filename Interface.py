@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 import simpy
-from Main import RMFS_Model
+from main import RMFS_Model
 from InterfaceInitializer import station_location, robot_location
 from pyDOE3 import *
 import sys
