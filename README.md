@@ -1,12 +1,16 @@
 # RMFS Simulation
 
-This is a Robotic Mobile Fulfillment System (RMFS) simulation written to try different strategies for assignment and routing problems in a robotic warehouse. The project is a part of Systems Design course of METU Industrial Engineering department.
+This is a Robotic Mobile Fulfillment System (RMFS) simulation written to try different strategies for assignment and routing problems in a robotic warehouse. The project is a part of [IE497](https://catalog.metu.edu.tr/course.php?course_code=5680497) - [IE498](https://catalog.metu.edu.tr/course.php?course_code=5680498) Systems Design course of [METU Industrial Engineering](https://ie.metu.edu.tr) department.
 
-The simulation is a **work in progress**.
+The simulation is working with the described features below. You can run the simulation using the guide below. For further features, you can open an issue, pull request or contact me.
 
 **Language:** Python
-
 **Libraries:** pandas, numpy, simpy, networkx, gurobi, google or tools, pydoe3, tkinter
+
+# Step by Step Guide
+
+![Insert](Insert.png)
+
 
 **Inputs:**
 
