@@ -1,6 +1,4 @@
-import numpy
 import math
-import pandas
 
 def station_location(pick_station_amount, pick_station_location, charge_station_amount, charge_station_location, horizontal_ailes, vertical_ailes, columns, rows):
     pick_locations = []

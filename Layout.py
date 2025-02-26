@@ -2,7 +2,6 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import Entities
 
-
 def place_shelf(network, start_pos, shelf_dimensions=(2, 4)):
     rows, cols = shelf_dimensions
     for r in range(rows):
@@ -12,7 +11,6 @@ def place_shelf(network, start_pos, shelf_dimensions=(2, 4)):
                 network.nodes[node]['shelf'] = True
                 tempPod = Entities.Pod
                 network.nodes[node]['pod'] = tempPod
-
 
 def draw_network_with_shelves(G, pos):
     # Node colors based on shelf attribute
@@ -27,17 +25,16 @@ def place_shelves_automatically(network, shelf_dimensions=(4, 2), spacing=(1, 1)
     shelf_rows, shelf_cols = shelf_dimensions
     space_rows, space_cols = spacing
 
-    # Mümkün olan her yere raf yerleştirmek için döngüler
+    # Loops to place shelves wherever possible
     for r in range(1, rows, shelf_rows + space_rows):
         for c in range(1, cols, shelf_cols + space_cols):
             start_pos = (r, c)
-            # Belirlenen başlangıç pozisyonundan itibaren raf yerleştirme
+            # Shelf placement from specified starting position
             place_shelf(network, start_pos, shelf_dimensions)
-
 
 def create_rectangular_network_with_attributes(rows, columns):
     G = nx.grid_2d_graph(rows, columns)
-    G.graph['rows'] = rows  # Ekstra bilgileri depolama
+    G.graph['rows'] = rows
     G.graph['cols'] = columns
     pos = dict((node, node) for node in G.nodes())
     return G, pos
@@ -68,7 +65,7 @@ def create_node_added_subgraph(specific_node, subgraph, graph):
     return node_added_subgraph
 
 if __name__ == "__main__":
-    # Yeni depo ağı oluşturma ve raf yerleştirme
+    # Creating a new warehouse network and racking
     rows = 4
     columns = 4
     rectangular_network, pos = create_rectangular_network_with_attributes(rows, columns)
@@ -84,5 +81,5 @@ if __name__ == "__main__":
 
     # Display the graph
     plt.show()
-    # Güncellenmiş ağı görselleştirme
+    # Visualizing the updated network
     draw_network_with_shelves(rectangular_network, pos)

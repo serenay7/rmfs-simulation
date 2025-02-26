@@ -3,20 +3,13 @@ from tkinter import ttk
 import simpy
 from main import RMFS_Model
 from InterfaceInitializer import station_location, robot_location
-from pyDOE3 import *
+from pyDOE3 import ff2n
 import sys
 
 import numpy as np
 import pandas as pd
-from simpy.events import AllOf
 
-from Entities import Robot, Pod, InputStation, OutputStation, ExtractTask, StorageTask, SKU, ChargingStation
 import Layout
-
-from PodSelection import podAndStation_combination, calculate_total_distances_for_all_requirements, min_max_diff, check_feasibility, columnMultiplication, assign_pods_to_stations
-from ortools.constraint_solver import routing_enums_pb2
-from ortools.constraint_solver import pywrapcp
-import networkx as nx
 
 sys.setrecursionlimit(1500) 
 
@@ -51,7 +44,6 @@ def run_simulation():
     charge_flag_rate = float(charge_flag_rate_entry.get()) #
     max_charge_rate = float(max_charge_rate_entry.get()) #
     
-    
     # no taguchi, single run
     if do_tg==0: 
 
@@ -62,7 +54,7 @@ def run_simulation():
 
         rectangular_network, pos = Layout.create_rectangular_network_with_attributes(columns, rows)
         Layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-        # nodes = list(rectangular_network.nodes)
+
         simulation = RMFS_Model(env=env, network=rectangular_network)
         simulation.createPods()
         simulation.createSKUs()
@@ -82,7 +74,7 @@ def run_simulation():
     
     elif do_tg==1:
 
-        exp_obj = experiment_objective_combo.get()
+        # exp_obj = experiment_objective_combo.get()
 
         experiment = ff2n(parameter_count)
         
@@ -163,7 +155,7 @@ def run_simulation():
             exp_array[i,5] = pearl_rates[f]
 
         exp_df = pd.DataFrame(data = exp_array,   
-                  columns = ['Pick Station Amount', 'Charge Station Amount', 'Robot Amount', 'Charge Flag Rate', 'Max Charge Rate', 'Pearl Rate']) 
+                    columns = ['Pick Station Amount', 'Charge Station Amount', 'Robot Amount', 'Charge Flag Rate', 'Max Charge Rate', 'Pearl Rate']) 
         
         writer = pd.ExcelWriter('experiment/TaguchiVRP.xlsx', engine='xlsxwriter')
 

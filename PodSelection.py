@@ -12,7 +12,6 @@ def podAndStation_combination_recursive(pods, stations, current_distribution=[],
             podAndStation_combination_recursive(pods - i, stations - 1, current_distribution + [i], all_distributions)
     return all_distributions
 
-
 def podAndStation_combination(pods, stations):
     # Get all distributions
     distributions = podAndStation_combination_recursive(pods, stations)
@@ -21,7 +20,6 @@ def podAndStation_combination(pods, stations):
     distributions = [lst for lst in distributions if sum(lst) == pods]
     distribution_matrix = np.array(distributions)
     return distribution_matrix
-
 
 def convert_to_tuple(node):
     """Convert a string representation of a tuple to an actual tuple of integers."""
@@ -34,14 +32,12 @@ def min_max_diff(combination, no_of_pods):
     min_max_diff = (max_values - min_values) / no_of_pods
     return min_max_diff
 
-
 def check_feasibility(arr):
     if np.all(arr == np.inf):
         print("No feasible solution.")
     else:
         min_index = np.argmin(arr)
         return min_index
-
 
 def columnMultiplication(distanceMatrix, requirements):
     """distanceMatrix: nparray rows as pods, columns as stations
@@ -51,7 +47,6 @@ def columnMultiplication(distanceMatrix, requirements):
     expanded_matrix = np.hstack(new_columns)
 
     return expanded_matrix
-
 
 def column_to_station_mapping(requirements):
     """
@@ -93,7 +88,6 @@ def assign_pods_to_stations(distanceMatrix, requirements):
 
     return (row_ind, assigned_stations, total_distance)
 
-
 def calculate_total_distances_for_all_requirements(distanceMatrix, PS_combination):
     """
     Calculate total distances for each set of requirements in PS_combination.
@@ -116,8 +110,6 @@ def calculate_total_distances_for_all_requirements(distanceMatrix, PS_combinatio
         total_distances[i] = total_distance
 
     return total_distances
-
-
 
 def mainPodAssignment(pod_nodes, station_nodes, max_percentage):
     no_of_pods = len(pod_nodes)
@@ -163,20 +155,6 @@ def mainPodAssignment(pod_nodes, station_nodes, max_percentage):
     testMatrix = columnMultiplication(podAndStation_distance, requirement)
     assigned_pods, assigned_stations, total_distance = assign_pods_to_stations(podAndStation_distance, requirement)
 
-    #if result_idx is not None:
-        # print("Index of the minimum value:", result_idx)
-        # print("Combination at index:", requirement)
-        # print("Total Distance at index:", total_distance)
-        # print("assgned pods:", assigned_pods)
-        # print("assgned stations:", assigned_stations)
-
-    # PS_distance = her podun her istasyona uzaklığı
-    # PS_combination = all possible combinations
-    # requirement = en iyileyen kombinasyon
-    # testMatrix = hungarian için duplike edilen distance matrix
-    # assigned_pods = direkt olarak saf hungarian çıktısı, istasyon bilgisi yok
-    # assigned_stations = pod istasyon eşleşmeleri, from assigned_pods
-
     return podAndStation_distance, combination, requirement, testMatrix, assigned_pods, assigned_stations, total_distance
 
 
@@ -185,11 +163,6 @@ def stationLocationFinder(network, numStation):
     nodes = list(network.nodes)
     station_nodes = []
 
-    # if numStation == 2:
-    #     firstStation = ((nodes[0][0] + nodes[-1][0])//2, nodes[0][1])
-    #     station_nodes.append(str(firstStation))
-    #     secondStation = ((nodes[0][0] + nodes[-1][0])//2,nodes[-1][1])
-    #     station_nodes.append(str(secondStation))
     if numStation == 2:
         firstStation = (nodes[0][0], (nodes[0][1] + nodes[-1][1])//2)
         station_nodes.append(str(firstStation))
