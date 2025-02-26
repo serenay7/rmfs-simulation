@@ -10,9 +10,11 @@ The simulation is working with the described features below. You can run the sim
 
 # Step by Step Guide
 
-<strong>Step 1:</strong> Run the `interface.py` file.
+Run the `interface.py` file.
 
-![Interface](Interface.png)
+<div align="center">
+<img src="Interface.png" width="400" alt="Interface">
+</div>
 
 
 **Warehouse & Simulation Settings:**
@@ -23,7 +25,9 @@ Number of inner ailes. Shelves/pods are created as a group of 2x4=8.
 
 e.g. When there are 2 horizontal and 2 vertical ailes, there are 4 corridors in each direction and a layout of 10x16 is created.
 
-![Warehouse Layout](Warehouse.png)
+<div align="center">
+<img src="Warehouse.png" width="300" alt="Warehouse Layout">
+</div>
 
 2. Station Amounts and Locations:
 
@@ -54,7 +58,9 @@ All robots in the simulation are of the same type.
 
 4. Max Charge Rate: The percentage charge level of the robot to leave the charge station.
 
-![Charge Flow](ChargeFlow.png)
+<div align="center">
+<img src="ChargeFlow.png" width="500" alt="Charge Flow">
+</div>
 
 **Taguchi Experiment Frame:**
 
