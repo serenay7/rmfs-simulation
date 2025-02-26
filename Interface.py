@@ -60,8 +60,8 @@ def run_simulation():
         rows = (3*int(horizontal_ailes))+4 # 10
         columns = (5*int(vertical_ailes))+6 # 16
 
-        rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
-        layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+        rectangular_network, pos = Layout.create_rectangular_network_with_attributes(columns, rows)
+        Layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
         # nodes = list(rectangular_network.nodes)
         simulation = RMFS_Model(env=env, network=rectangular_network)
         simulation.createPods()
@@ -188,8 +188,8 @@ def run_simulation():
             rows = (3*int(horizontal_ailes))+4 # 10
             columns = (5*int(vertical_ailes))+6 # 16
 
-            rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
-            layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+            rectangular_network, pos = Layout.create_rectangular_network_with_attributes(columns, rows)
+            Layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
             simulation = RMFS_Model(env=env, network=rectangular_network)
             simulation.createPods()
             simulation.createSKUs()
@@ -348,7 +348,8 @@ loaded_battery_consumption_entry.insert(0, "14.53265")
 ttk.Label(frame, text="Empty Battery Consumption (Ah):").grid(row=17, column=0, sticky=tk.W)
 empty_battery_consumption_entry = ttk.Entry(frame)
 empty_battery_consumption_entry.grid(row=17, column=1)
-empty_battery_consumption_entry.insert(0, "11.9566")'''
+empty_battery_consumption_entry.insert(0, "11.9566")
+'''
 
 ttk.Label(frame, text="Charging Rate (Ah):").grid(row=12, column=0, sticky=tk.W)
 charging_rate_entry = ttk.Entry(frame)
