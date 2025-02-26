@@ -13,7 +13,7 @@ The simulation is working with the described features below. You can run the sim
 Run the `interface.py` file.
 
 <div align="center">
-<img src="Interface.png" width="400" alt="Interface">
+<img src="Interface.png" width="600" alt="Interface">
 </div>
 
 
@@ -26,7 +26,7 @@ Number of inner ailes. Shelves/pods are created as a group of 2x4=8.
 e.g. When there are 2 horizontal and 2 vertical ailes, there are 4 corridors in each direction and a layout of 10x16 is created.
 
 <div align="center">
-<img src="Warehouse.png" width="300" alt="Warehouse Layout">
+<img src="Warehouse.png" width="450" alt="Warehouse Layout">
 </div>
 
 2. Station Amounts and Locations:
@@ -58,8 +58,9 @@ All robots in the simulation are of the same type.
 
 4. Max Charge Rate: The percentage charge level of the robot to leave the charge station.
 
+Charge flow is as follows:
 <div align="center">
-<img src="ChargeFlow.png" width="500" alt="Charge Flow">
+<img src="ChargeFlow.png" width="600" alt="Charge Flow">
 </div>
 
 **Taguchi Experiment Frame:**
@@ -75,7 +76,7 @@ All robots in the simulation are of the same type.
 If you're all set, you can click "Run Simulation" and you'll receive an output Excel.
 Current experiments file are filled with experiments from our senior year, you can clear those files before starting experimentations.
 
-When you choose what you want to experiment, an experiment matrix is created using [PyDOE3](https://pydoe3.readthedocs.io/en/latest/). You can see the experiment matrix in the output Excel.
+When you choose what you want to experiment, an experiment matrix is created using [PyDOE3](https://pydoe3.readthedocs.io/en/latest/). It is a 2-Level Full-Factorial experiment. You can see the experiment matrix in the output Excel.
 
 **Experiment Outputs:**
 

@@ -23,7 +23,7 @@ class RMFS_Model():
     def __init__(self, env, network, TaskAssignmentPolicy="vrp", ChargePolicy="pearl", DropPodPolicy="fixed"):
         self.env = env
         self.network = network
-        self.corridorSubgraph = layout.create_corridor_subgraph(network)
+        self.corridorSubgraph = Layout.create_corridor_subgraph(network)
 
         pod_nodes = [node for node, data in network.nodes(data=True) if data.get('shelf', False)]
         self.podGraph = network.subgraph(pod_nodes) # Did not write .copy() to reference network itself
@@ -36,6 +36,7 @@ class RMFS_Model():
         self.satisfiedList = []
         self.totalPodNumber = 0
         self.totalPodStationDist = 0
+
     def createPods(self):
         podNodes = list(self.podGraph.nodes)
 
@@ -90,9 +91,6 @@ class RMFS_Model():
                     pod.skuDict[sku.id] = amount
                     sku.totalAmount += amount
 
-
-
-
     def createOutputStations(self, locations):
         """
         Creates output stations and adds to a list which is a feature of RMFS_Model class
@@ -108,19 +106,6 @@ class RMFS_Model():
         for loc in locations:
             tempStation = ChargingStation(env=self.env, capacity=1, location=loc)
             self.ChargingStations.append(tempStation)
-
-    """
-    def createRobots(self, startLocations):
-        
-        Creates robots and adds to a list which is a feature of RMFS_Model class
-        :param startLocations: List of tuples [(0,0), (5,0)]
-        
-        self.Robots = []
-        self.ChargeQueue = []
-        for idx, loc in enumerate(startLocations):
-            tempRobot = Robot(self.env, network_corridors=self.corridorSubgraph, network=self.network, robotID=idx, currentNode=loc, taskList=[], batteryLevel=41.6, chargingRate=41.6, Model=self, ChargeFlagRate=0.85, MaxChargeRate = 0.95, PearlRate = 0.4, RestRate = 0.1, chargingStationList=self.ChargingStations)
-            self.Robots.append(tempRobot)
-    """
 
     def createRobots(self, startLocations, charging_rate=41.6, max_battery=41.6, pearl_rate=0.4, rest_rate=0.1, charge_flag_rate=0.85,
                      max_charge_rate=0.95):
@@ -1641,8 +1626,8 @@ if __name__ == "__main__":
     #rows=31 #10x10
     #columns = 51
 
-    rectangular_network, pos = layout.create_rectangular_network_with_attributes(columns, rows)
-    layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+    rectangular_network, pos = Layout.create_rectangular_network_with_attributes(columns, rows)
+    Layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
     output = [(20, 12), (40, 6)]#, (20,0), (0,6)]
     charging = [(0, 12)]
     robots = [(0, 0), (40, 0)]#, (0,12), (40,12)]#, (0,30), (100,30)]#, (0, 7), (1, 8)]# (1, 9), (1, 0), (1, 7), (0, 4), (15,0)]
