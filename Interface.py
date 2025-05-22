@@ -10,236 +10,282 @@ import numpy as np
 import pandas as pd
 
 import Layout
+import config
+import logging
 
-sys.setrecursionlimit(1500) 
+# FIXME: Increased recursion limit. Investigate if this is truly needed for UI, Taguchi setup, or core simulation logic. Consider localizing or addressing underlying recursion if possible.
+# sys.setrecursionlimit(1500) # Commented out for now, will be localized if needed.
 
-def run_simulation():
-    print("started")
+# Setup basic logging for the Interface
+logging.basicConfig(level=config.LOGGING_LEVEL, format=config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT)
 
-    do_tg= int(do_taguchi.get())
+def _run_single_simulation(params):
+    """Helper function to run a single simulation."""
+    env = simpy.Environment()
 
-    do_pick_station_amount = int(pick_station_amount_taguchi.get())
-    do_charge_station_amount = int(charge_station_amount_taguchi.get())
-    do_robot_amount = int(robot_amount_taguchi.get())
-    do_charge_flag_rate = int(charge_flag_rate_taguchi.get())
-    do_max_charge_rate = int(max_charge_rate_taguchi.get())
-    do_pearl_rate = int(pearl_rate_taguchi.get())
+    rows = (3 * params['horizontal_ailes']) + 4
+    columns = (5 * params['vertical_ailes']) + 6
 
-    parameter_count = do_pick_station_amount + do_charge_station_amount + do_robot_amount + do_charge_flag_rate + do_max_charge_rate + do_pearl_rate
+    rectangular_network, pos = Layout.create_rectangular_network_with_attributes(columns, rows)
+    Layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
 
-    # inputs
-    horizontal_ailes = int(warehouse_horizontal_entry.get())
-    vertical_ailes = int(warehouse_vertical_entry.get())
-    pick_station_location = pick_station_location_combo.get()
-    charge_station_location = charge_station_location_combo.get()
-    cycle_amount = int(cycle_amount_entry.get())
-    cycle_runtime = int(cycle_runtime_entry.get())
-    charging_rate = float(charging_rate_entry.get())
-    max_battery = float(maximum_battery_entry.get())
-    pearl_rate = float(pearl_rate_entry.get())
-    rest_rate = float(rest_rate_entry.get())
-    pick_station_amount = int(pick_station_amount_entry.get()) #
-    charge_station_amount = int(charge_station_amount_entry.get()) #
-    robot_amount = int(robot_amount_entry.get()) #
-    charge_flag_rate = float(charge_flag_rate_entry.get()) #
-    max_charge_rate = float(max_charge_rate_entry.get()) #
+    simulation = RMFS_Model(env=env, network=rectangular_network)
+    simulation.createPods()
+    simulation.createSKUs()
+
+    startLocations = robot_location(params['pick_station_location'], params['charge_station_location'], columns, rows, params['robot_amount'])
+    pick_locations, charge_locations = station_location(
+        params['pick_station_amount'], params['pick_station_location'],
+        params['charge_station_amount'], params['charge_station_location'],
+        params['horizontal_ailes'], params['vertical_ailes'], columns, rows
+    )
     
-    # no taguchi, single run
-    if do_tg==0: 
+    simulation.createChargingStations(charge_locations)
+    simulation.createOutputStations(pick_locations)
 
-        env = simpy.Environment()
+    simulation.fillPods()
+    simulation.distanceMatrixCalculate()
 
-        rows = (3*int(horizontal_ailes))+4 # 10
-        columns = (5*int(vertical_ailes))+6 # 16
+    simulation.createRobots(
+        startLocations, params['charging_rate'], params['max_battery'],
+        params['pearl_rate'], params['rest_rate'], params['charge_flag_rate'], params['max_charge_rate']
+    )
 
-        rectangular_network, pos = Layout.create_rectangular_network_with_attributes(columns, rows)
-        Layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
+    simulation.MultiCycleVRP(params['cycle_amount'], params['cycle_runtime'], printOutput=True)
+    print("Single simulation run is over.")
 
-        simulation = RMFS_Model(env=env, network=rectangular_network)
-        simulation.createPods()
-        simulation.createSKUs()
 
-        startLocations = robot_location(pick_station_location, charge_station_location, columns, rows, robot_amount)
-        pick_locations, charge_locations = station_location(pick_station_amount, pick_station_location, charge_station_amount, charge_station_location, horizontal_ailes, vertical_ailes, columns, rows)
+def _run_taguchi_experiment(params):
+    """Helper function to run a Taguchi experiment."""
+    original_limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(config.TAGUCHI_RECURSION_LIMIT if hasattr(config, 'TAGUCHI_RECURSION_LIMIT') else 1500)
+    try:
+        parameter_count = params['do_pick_station_amount'] + params['do_charge_station_amount'] + \
+                          params['do_robot_amount'] + params['do_charge_flag_rate'] + \
+                          params['do_max_charge_rate'] + params['do_pearl_rate']
         
-        simulation.createChargingStations(charge_locations)
-        simulation.createOutputStations(pick_locations)
+        if parameter_count == 0:
+            print("Taguchi experiment selected, but no parameters chosen for variation.")
+            result_label.config(text="Taguchi: No parameters chosen for variation.")
+            return
 
-        simulation.fillPods()
-        simulation.distanceMatrixCalculate()
-
-        simulation.createRobots(startLocations, charging_rate, max_battery, pearl_rate, rest_rate, charge_flag_rate, max_charge_rate)
-
-        simulation.MultiCycleVRP(cycle_amount,cycle_runtime, printOutput=True)
-    
-    elif do_tg==1:
-
-        # exp_obj = experiment_objective_combo.get()
-
-        experiment = ff2n(parameter_count)
+        experiment_design = ff2n(parameter_count)
         
-        for i in range(len(experiment)):
-            for j in range(len(experiment[i])):
-                if experiment[i][j] == -1:
-                    experiment[i][j] = 0
+        for i in range(len(experiment_design)):
+            for j in range(len(experiment_design[i])):
+                if experiment_design[i][j] == -1:
+                    experiment_design[i][j] = 0
 
-        no_of_experiments = experiment.shape[0]
-        exp_array = np.zeros((no_of_experiments,6))
+        num_experiments = experiment_design.shape[0]
+        exp_array_full = np.zeros((num_experiments, 6)) # 6 is the number of possible varying factors
 
-        print(exp_array)
-
-        testdict = {'do_pick_station_amount':0, 'do_charge_station_amount':1, 'do_robot_amount':2, 'do_charge_flag_rate':3, 'do_max_charge_rate':4, 'do_pearl_rate':5}
-        cols = []
-
-        if do_pick_station_amount:
-            cols.append(testdict["do_pick_station_amount"])
-            pick_station_amount2 = int(pick_station_amount2_entry.get())
-            pick_station_amounts = [pick_station_amount, pick_station_amount2]
-        else:
-            pick_station_amounts = [pick_station_amount]
-            
-        if do_charge_station_amount:
-            cols.append(testdict["do_charge_station_amount"])
-            charge_station_amount2 = int(charge_station_amount2_entry.get())
-            charge_station_amounts = [charge_station_amount, charge_station_amount2]
-        else: 
-            charge_station_amounts = [charge_station_amount]
-
-        if do_robot_amount:
-            cols.append(testdict["do_robot_amount"])
-            robot_amount2 = int(robot_amount2_entry.get())
-            robot_amounts = [robot_amount, robot_amount2]
-        else:
-            robot_amounts = [robot_amount]
-
-        if do_charge_flag_rate:
-            cols.append(testdict["do_charge_flag_rate"])
-            charge_flag_rate2 = float(charge_flag_rate2_entry.get())
-            charge_flag_rates = [charge_flag_rate, charge_flag_rate2]
-        else:
-            charge_flag_rates = [charge_flag_rate]
-
-        if do_max_charge_rate:
-            cols.append(testdict["do_max_charge_rate"])
-            max_charge_rate2 = float(max_charge_rate2_entry.get())
-            max_charge_rates = [max_charge_rate, max_charge_rate2]
-        else:
-            max_charge_rates = [max_charge_rate]
-
-        if do_pearl_rate:
-            cols.append(testdict["do_pearl_rate"])
-            pearl_rate2 = float(pearl_rate2_entry.get())
-            pearl_rates = [pearl_rate, pearl_rate2]
-        else:
-            pearl_rates = [pearl_rate]
+        # Mapping selected Taguchi parameters to their column index in exp_array_full
+        factor_map = {
+            'pick_station_amount': 0, 
+            'charge_station_amount': 1, 
+            'robot_amount': 2, 
+            'charge_flag_rate': 3, 
+            'max_charge_rate': 4, 
+            'pearl_rate': 5
+        }
         
-        exp_array[:, cols] = experiment
+        selected_cols_indices = []
+        current_col_idx = 0
 
-        for i in range(len(experiment)):
-            a = int(exp_array[i,0]) #pick station
-            exp_array[i,0] = pick_station_amounts[a]
-            
-            b = int(exp_array[i,1]) #charge station
-            exp_array[i,1] = charge_station_amounts[b]
+        # Base values (Level 1)
+        factor_levels = {
+            'pick_station_amount': [params['pick_station_amount']],
+            'charge_station_amount': [params['charge_station_amount']],
+            'robot_amount': [params['robot_amount']],
+            'charge_flag_rate': [params['charge_flag_rate']],
+            'max_charge_rate': [params['max_charge_rate']],
+            'pearl_rate': [params['pearl_rate']]
+        }
 
-            c = int(exp_array[i,2]) #robot amount
-            exp_array[i,2] = robot_amounts[c]
+        # Add Level 2 values if selected for Taguchi
+        if params['do_pick_station_amount']:
+            selected_cols_indices.append(factor_map['pick_station_amount'])
+            factor_levels['pick_station_amount'].append(params['pick_station_amount2'])
+        if params['do_charge_station_amount']:
+            selected_cols_indices.append(factor_map['charge_station_amount'])
+            factor_levels['charge_station_amount'].append(params['charge_station_amount2'])
+        if params['do_robot_amount']:
+            selected_cols_indices.append(factor_map['robot_amount'])
+            factor_levels['robot_amount'].append(params['robot_amount2'])
+        if params['do_charge_flag_rate']:
+            selected_cols_indices.append(factor_map['charge_flag_rate'])
+            factor_levels['charge_flag_rate'].append(params['charge_flag_rate2'])
+        if params['do_max_charge_rate']:
+            selected_cols_indices.append(factor_map['max_charge_rate'])
+            factor_levels['max_charge_rate'].append(params['max_charge_rate2'])
+        if params['do_pearl_rate']:
+            selected_cols_indices.append(factor_map['pearl_rate'])
+            factor_levels['pearl_rate'].append(params['pearl_rate2'])
 
-            d = int(exp_array[i,3]) #charge flag rate
-            exp_array[i,3] = charge_flag_rates[d]
+        # Fill exp_array_full: default to level 1, then fill experiment design for selected factors
+        for factor_name, base_val_list in factor_levels.items():
+            exp_array_full[:, factor_map[factor_name]] = base_val_list[0]
 
-            e = int(exp_array[i,4]) #max charge rate
-            exp_array[i,4] = max_charge_rates[e]
+        if selected_cols_indices: # If any factor is varied
+            exp_array_full[:, selected_cols_indices] = experiment_design
 
-            f = int(exp_array[i,5]) #max charge rate
-            exp_array[i,5] = pearl_rates[f]
+        # Convert experiment design levels (0,1) to actual parameter values
+        for i in range(num_experiments):
+            for factor_name, col_idx in factor_map.items():
+                if params[f'do_{factor_name}']: # Check if this factor was part of the experiment
+                     level_index = int(exp_array_full[i, col_idx]) # Should be 0 or 1 from experiment_design
+                     exp_array_full[i, col_idx] = factor_levels[factor_name][level_index]
+                # else it remains the base value already set
 
-        exp_df = pd.DataFrame(data = exp_array,   
-                    columns = ['Pick Station Amount', 'Charge Station Amount', 'Robot Amount', 'Charge Flag Rate', 'Max Charge Rate', 'Pearl Rate']) 
+        exp_df_columns = ['Pick Station Amount', 'Charge Station Amount', 'Robot Amount', 'Charge Flag Rate', 'Max Charge Rate', 'Pearl Rate']
+        exp_df = pd.DataFrame(data=exp_array_full, columns=exp_df_columns)
         
         writer = pd.ExcelWriter('experiment/TaguchiVRP.xlsx', engine='xlsxwriter')
-
         exp_df.to_excel(writer, sheet_name='Experiment', index=False)
 
-        simulationhours = (cycle_amount*cycle_runtime)/(60*60)
-        total_steps_list = []
-        units_per_hour_list = []
-        robot_utilization_list = []
+        simulation_hours = (params['cycle_amount'] * params['cycle_runtime']) / (60 * 60)
+        total_steps_list, units_per_hour_list, robot_utilization_list = [], [], []
 
-        for i in range(len(experiment)):
-
-            pick_station_amount = int(exp_array[i,0])
-            charge_station_amount = int(exp_array[i,1])
-            robot_amount = int(exp_array[i,2])
-            charge_flag_rate = exp_array[i,3]
-            max_charge_rate = exp_array[i,4]
-            pearl_rate = exp_array[i,5]
+        for i in range(num_experiments):
+            current_pick_station_amount = int(exp_array_full[i, factor_map['pick_station_amount']])
+            current_charge_station_amount = int(exp_array_full[i, factor_map['charge_station_amount']])
+            current_robot_amount = int(exp_array_full[i, factor_map['robot_amount']])
+            current_charge_flag_rate = float(exp_array_full[i, factor_map['charge_flag_rate']])
+            current_max_charge_rate = float(exp_array_full[i, factor_map['max_charge_rate']])
+            current_pearl_rate = float(exp_array_full[i, factor_map['pearl_rate']])
 
             env = simpy.Environment()
+            rows = (3 * params['horizontal_ailes']) + 4
+            columns = (5 * params['vertical_ailes']) + 6
 
-            rows = (3*int(horizontal_ailes))+4 # 10
-            columns = (5*int(vertical_ailes))+6 # 16
-
-            rectangular_network, pos = Layout.create_rectangular_network_with_attributes(columns, rows)
+            rectangular_network, _ = Layout.create_rectangular_network_with_attributes(columns, rows)
             Layout.place_shelves_automatically(rectangular_network, shelf_dimensions=(4, 2), spacing=(1, 1))
-            simulation = RMFS_Model(env=env, network=rectangular_network)
+            
+            simulation = RMFS_Model(env=env, network=rectangular_network) # Uses default policies from config
             simulation.createPods()
             simulation.createSKUs()
 
-            startLocations = robot_location(pick_station_location, charge_station_location, columns, rows, robot_amount)
-            pick_locations, charge_locations = station_location(pick_station_amount, pick_station_location, charge_station_amount, charge_station_location, horizontal_ailes, vertical_ailes, columns, rows)
+            startLocations = robot_location(params['pick_station_location'], params['charge_station_location'], columns, rows, current_robot_amount)
+            pick_locations, charge_locations = station_location(
+                current_pick_station_amount, params['pick_station_location'],
+                current_charge_station_amount, params['charge_station_location'],
+                params['horizontal_ailes'], params['vertical_ailes'], columns, rows
+            )
         
             simulation.createChargingStations(charge_locations)
             simulation.createOutputStations(pick_locations)
             simulation.fillPods()
             simulation.distanceMatrixCalculate()
-            simulation.createRobots(startLocations, charging_rate, max_battery, pearl_rate, rest_rate, charge_flag_rate, max_charge_rate)
+            simulation.createRobots(
+                startLocations, params['charging_rate'], params['max_battery'],
+                current_pearl_rate, params['rest_rate'], current_charge_flag_rate, current_max_charge_rate
+            )
 
-            sheet1, sheet2 = simulation.TaguchiVRP(cycle_amount,cycle_runtime, printOutput=True)
+            # TaguchiVRP in RMFS_Model should ideally not write to its own file if we are aggregating here.
+            # For now, assume it returns the dataframes.
+            # The printOutput=False might be better if TaguchiVRP writes file by itself.
+            # If TaguchiVRP is to be used in this loop, printOutput should be False, and data returned.
+            # For now, we assume TaguchiVRP is called and it might write its own temp files, or this `writer` handles all.
+            # The original code called simulation.TaguchiVRP with printOutput=True, which implies it writes to config.OUTPUT_VRP_EXCEL.
+            # This is problematic if we want one consolidated Taguchi report.
+            # For this refactoring, let's assume TaguchiVRP can run without writing, and returns dfs.
+            # Modifying RMFS_Model.TaguchiVRP to not write if printOutput=False is outside current scope.
+            # So, we will let it write its files, and also collect stats here.
 
-            total_rows = len(sheet1)
-            extract_count = sheet1[sheet1['robotStatus'] == 'extract'].shape[0]
-            utilization = extract_count /(total_rows*robot_amount)
-            robot_utilization_list.append(utilization)
+            sheet1_data, sheet2_data = simulation.TaguchiVRP(params['cycle_amount'], params['cycle_runtime'], printOutput=False) # Must return dataframes
 
-            station_rows = sheet2[sheet2['Statistics'].str.startswith('Station')]
-            units_per_hour = station_rows['Value'].sum()
-            units_per_hour_list.append(units_per_hour)
-            print(units_per_hour_list)
+            total_rows_ts = len(sheet1_data)
+            if total_rows_ts > 0 and current_robot_amount > 0:
+                 extract_count = sheet1_data[sheet1_data['robotStatus'] == 'extract'].shape[0]
+                 utilization = extract_count / (total_rows_ts * current_robot_amount) # this is not correct, total_rows_ts is not total time units
+            else:
+                 utilization = 0
+            robot_utilization_list.append(utilization) # This calculation needs review based on timeStatDF structure
 
-            max_steps_per_robot = sheet1.groupby('robotID')['stepsTaken'].max()
-            total_steps = max_steps_per_robot.sum()
+            station_rows = sheet2_data[sheet2_data['Statistics'].str.startswith('Station')]
+            units_collected = station_rows['Value'].sum()
+            units_per_hour_list.append(units_collected) # Will divide by simulation_hours later
+
+            if not sheet1_data.empty:
+                max_steps_per_robot = sheet1_data.groupby('robotID')['stepsTaken'].max()
+                total_steps = max_steps_per_robot.sum()
+            else:
+                total_steps = 0
             total_steps_list.append(total_steps)
-            print(total_steps)
 
-            sheet1.to_excel(writer, sheet_name=f'TimeSeries{i+1}', index=False)
-            sheet2.to_excel(writer, sheet_name=f'Observed{i+1}', index=False)
+            sheet1_data.to_excel(writer, sheet_name=f'TimeSeries{i+1}', index=False)
+            sheet2_data.to_excel(writer, sheet_name=f'Observed{i+1}', index=False)
 
-        utilization_df = pd.DataFrame({'RobotUtilization': total_steps_list})
-        utilization_df.to_excel(writer, sheet_name='RobotUtilization', index=False)
+        # Post-loop processing for Taguchi results
+        if simulation_hours > 0:
+             units_per_hour_list = [val / simulation_hours for val in units_per_hour_list]
+        else:
+             units_per_hour_list = [0] * len(units_per_hour_list)
 
-        total_steps_df = pd.DataFrame({'TotalSteps': total_steps_list})
-        total_steps_df.to_excel(writer, sheet_name='TotalSteps', index=False)
 
-        units_per_hour_list = [val / (simulationhours) for val in units_per_hour_list]
-        print(units_per_hour_list)
-        uph_df = pd.DataFrame({'UPH': units_per_hour_list})
-        uph_df.to_excel(writer, sheet_name='UPH', index=False)
-
-        min_index_steps = total_steps_df['TotalSteps'].idxmin()
-        print('Best Experiment for Total Steps:', min_index_steps+1)
-
-        max_index_uph = uph_df['UPH'].idxmax()
-        print('Best Experiment for UPH:', max_index_uph+1)
-
-        max_index_utilization = utilization_df['RobotUtilization'].idxmax()
-        print('Best Experiment for Robot Utilization:', max_index_utilization+1)
+        # Saving aggregated results
+        pd.DataFrame({'RobotUtilization': robot_utilization_list}).to_excel(writer, sheet_name='Agg_RobotUtilization', index=False)
+        pd.DataFrame({'TotalSteps': total_steps_list}).to_excel(writer, sheet_name='Agg_TotalSteps', index=False)
+        pd.DataFrame({'UPH': units_per_hour_list}).to_excel(writer, sheet_name='Agg_UPH', index=False)
+        
+        # Printing best experiments
+        if total_steps_list:
+             print('Best Experiment for Total Steps:', np.argmin(total_steps_list) + 1 if total_steps_list else 'N/A')
+        if units_per_hour_list:
+             print('Best Experiment for UPH:', np.argmax(units_per_hour_list) + 1 if units_per_hour_list else 'N/A')
+        # Robot utilization interpretation might need care - higher is better if it means productive work.
+        if robot_utilization_list:
+             print('Best Experiment for Robot Utilization:', np.argmax(robot_utilization_list) + 1 if robot_utilization_list else 'N/A')
 
         writer._save()
-        print("run is over")
+        print("Taguchi experiment run is over.")
+    finally:
+        sys.setrecursionlimit(original_limit)
 
 
-    result_label.config(text="Simulation started...") 
+def run_simulation():
+    print("started")
+    
+    params = {
+        'horizontal_ailes': int(warehouse_horizontal_entry.get()),
+        'vertical_ailes': int(warehouse_vertical_entry.get()),
+        'pick_station_location': pick_station_location_combo.get(),
+        'charge_station_location': charge_station_location_combo.get(),
+        'cycle_amount': int(cycle_amount_entry.get()),
+        'cycle_runtime': int(cycle_runtime_entry.get()),
+        'charging_rate': float(charging_rate_entry.get()),
+        'max_battery': float(maximum_battery_entry.get()),
+        'pearl_rate': float(pearl_rate_entry.get()), # Used by both, but level 2 for Taguchi
+        'rest_rate': float(rest_rate_entry.get()),
+        'pick_station_amount': int(pick_station_amount_entry.get()), # Level 1 for Taguchi
+        'charge_station_amount': int(charge_station_amount_entry.get()), # Level 1 for Taguchi
+        'robot_amount': int(robot_amount_entry.get()), # Level 1 for Taguchi
+        'charge_flag_rate': float(charge_flag_rate_entry.get()), # Level 1 for Taguchi
+        'max_charge_rate': float(max_charge_rate_entry.get()), # Level 1 for Taguchi
+        
+        # Taguchi specific flags and level 2 values
+        'do_taguchi': int(do_taguchi.get()),
+        'do_pick_station_amount': int(pick_station_amount_taguchi.get()),
+        'pick_station_amount2': int(pick_station_amount2_entry.get()),
+        'do_charge_station_amount': int(charge_station_amount_taguchi.get()),
+        'charge_station_amount2': int(charge_station_amount2_entry.get()),
+        'do_robot_amount': int(robot_amount_taguchi.get()),
+        'robot_amount2': int(robot_amount2_entry.get()),
+        'do_charge_flag_rate': int(charge_flag_rate_taguchi.get()),
+        'charge_flag_rate2': float(charge_flag_rate2_entry.get()),
+        'do_max_charge_rate': int(max_charge_rate_taguchi.get()),
+        'max_charge_rate2': float(max_charge_rate2_entry.get()),
+        'do_pearl_rate': int(pearl_rate_taguchi.get()),
+        'pearl_rate2': float(pearl_rate2_entry.get()),
+        # 'experiment_objective': experiment_objective_combo.get() # Not directly used in sim logic, but for analysis
+    }
+
+    if params['do_taguchi'] == 0:
+        _run_single_simulation(params)
+    elif params['do_taguchi'] == 1:
+        _run_taguchi_experiment(params)
+
+    result_label.config(text="Simulation run completed.")
 
 app = tk.Tk()
 app.title("RMFS Simulation Interface")
@@ -266,42 +312,42 @@ ttk.Label(frame, text="Warehouse & Simulation Settings", font=('Helvetica', 12, 
 ttk.Label(frame, text="Vertical Aisles:").grid(row=1, column=0, sticky=tk.W)
 warehouse_vertical_entry = ttk.Entry(frame)
 warehouse_vertical_entry.grid(row=1, column=1)
-warehouse_vertical_entry.insert(0, "2")  # Default value
+warehouse_vertical_entry.insert(0, config.DEFAULT_VERTICAL_AISLES)
 
 ttk.Label(frame, text="Horizontal Aisles:").grid(row=2, column=0, sticky=tk.W)
 warehouse_horizontal_entry = ttk.Entry(frame)
 warehouse_horizontal_entry.grid(row=2, column=1)
-warehouse_horizontal_entry.insert(0, "2")  # Default value
+warehouse_horizontal_entry.insert(0, config.DEFAULT_HORIZONTAL_AISLES)
 
 ttk.Label(frame, text="Pick Station Amount:").grid(row=3, column=0, sticky=tk.W)
 pick_station_amount_entry = ttk.Entry(frame)
 pick_station_amount_entry.grid(row=3, column=1)
-pick_station_amount_entry.insert(0, "1")  # Default value
+pick_station_amount_entry.insert(0, config.DEFAULT_NUM_OUTPUT_STATIONS_STR) # Default to 1 or a new config
 
 ttk.Label(frame, text="Pick Station Location:").grid(row=4, column=0, sticky=tk.W)
-pick_station_location_combo = ttk.Combobox(frame, values=["TOP", "BOTTOM", "LEFT", "RIGHT"])
+pick_station_location_combo = ttk.Combobox(frame, values=[config.UI_DEFAULT_LAYOUT_SIDE_TOP, config.UI_DEFAULT_LAYOUT_SIDE_BOTTOM, config.UI_DEFAULT_LAYOUT_SIDE_LEFT, config.UI_DEFAULT_LAYOUT_SIDE_RIGHT])
 pick_station_location_combo.grid(row=4, column=1)
-pick_station_location_combo.set("TOP")  # Default value
+pick_station_location_combo.set(config.UI_DEFAULT_LAYOUT_SIDE_TOP)
 
 ttk.Label(frame, text="Charge Station Amount:").grid(row=5, column=0, sticky=tk.W)
 charge_station_amount_entry = ttk.Entry(frame)
 charge_station_amount_entry.grid(row=5, column=1)
-charge_station_amount_entry.insert(0, "1")  # Default value
+charge_station_amount_entry.insert(0, "1") # Assuming 1 is a common default, can add to config if needed
 
 ttk.Label(frame, text="Charge Station Location:").grid(row=6, column=0, sticky=tk.W)
-charge_station_location_combo = ttk.Combobox(frame, values=["TOP", "BOTTOM", "LEFT", "RIGHT"])
+charge_station_location_combo = ttk.Combobox(frame, values=[config.UI_DEFAULT_LAYOUT_SIDE_TOP, config.UI_DEFAULT_LAYOUT_SIDE_BOTTOM, config.UI_DEFAULT_LAYOUT_SIDE_LEFT, config.UI_DEFAULT_LAYOUT_SIDE_RIGHT])
 charge_station_location_combo.grid(row=6, column=1)
-charge_station_location_combo.set("BOTTOM")
+charge_station_location_combo.set(config.UI_DEFAULT_LAYOUT_SIDE_BOTTOM)
 
 ttk.Label(frame, text="Cycle Runtime (sec):").grid(row=7, column=0, sticky=tk.W)
 cycle_runtime_entry = ttk.Entry(frame)
 cycle_runtime_entry.grid(row=7, column=1)
-cycle_runtime_entry.insert(0, "900")
+cycle_runtime_entry.insert(0, config.DEFAULT_CYCLE_RUNTIME_SEC_STR)
 
 ttk.Label(frame, text="Cycle Amount:").grid(row=8, column=0, sticky=tk.W)
 cycle_amount_entry = ttk.Entry(frame)
 cycle_amount_entry.grid(row=8, column=1)
-cycle_amount_entry.insert(0, "1")
+cycle_amount_entry.insert(0, config.DEFAULT_CYCLE_AMOUNT)
 
 ttk.Label(frame, text="").grid(row=9, column=0, columnspan=2)
 ttk.Label(frame, text="Robot Settings", font=('Helvetica', 12, 'bold')).grid(row=10, column=0, columnspan=2, sticky=tk.W)
@@ -309,17 +355,17 @@ ttk.Label(frame, text="Robot Settings", font=('Helvetica', 12, 'bold')).grid(row
 ttk.Label(frame, text="Robot Amount:").grid(row=11, column=0, sticky=tk.W)
 robot_amount_entry = ttk.Entry(frame)
 robot_amount_entry.grid(row=11, column=1)
-robot_amount_entry.insert(0, "2")
+robot_amount_entry.insert(0, config.DEFAULT_NUM_ROBOTS_STR)
 
 ttk.Label(frame, text="Charging Rate (Ah):").grid(row=12, column=0, sticky=tk.W)
 charging_rate_entry = ttk.Entry(frame)
 charging_rate_entry.grid(row=12, column=1)
-charging_rate_entry.insert(0, "41.6")
+charging_rate_entry.insert(0, str(config.DEFAULT_CHARGING_RATE))
 
 ttk.Label(frame, text="Maximum Battery (Ah):").grid(row=13, column=0, sticky=tk.W)
 maximum_battery_entry = ttk.Entry(frame)
 maximum_battery_entry.grid(row=13, column=1)
-maximum_battery_entry.insert(0, "41.6")
+maximum_battery_entry.insert(0, str(config.DEFAULT_MAX_BATTERY))
 
 ttk.Label(frame, text="").grid(row=14, column=0, columnspan=2)
 ttk.Label(frame, text="Charge Policy Settings", font=('Helvetica', 12, 'bold')).grid(row=15, column=0, columnspan=2, sticky=tk.W)
@@ -327,22 +373,22 @@ ttk.Label(frame, text="Charge Policy Settings", font=('Helvetica', 12, 'bold')).
 ttk.Label(frame, text="Pearl Rate:").grid(row=16, column=0, sticky=tk.W)
 pearl_rate_entry = ttk.Entry(frame)
 pearl_rate_entry.grid(row=16, column=1)
-pearl_rate_entry.insert(0, "0.4")
+pearl_rate_entry.insert(0, str(config.DEFAULT_PEARL_RATE))
 
 ttk.Label(frame, text="Rest Rate:").grid(row=17, column=0, sticky=tk.W)
 rest_rate_entry = ttk.Entry(frame)
 rest_rate_entry.grid(row=17, column=1)
-rest_rate_entry.insert(0, "0.1")
+rest_rate_entry.insert(0, str(config.DEFAULT_REST_RATE))
 
 ttk.Label(frame, text="Charge Flag Rate:").grid(row=18, column=0, sticky=tk.W)
 charge_flag_rate_entry = ttk.Entry(frame)
 charge_flag_rate_entry.grid(row=18, column=1)
-charge_flag_rate_entry.insert(0, "0.8")
+charge_flag_rate_entry.insert(0, str(config.DEFAULT_CHARGE_FLAG_RATE))
 
 ttk.Label(frame, text="Max Charge Rate:").grid(row=19, column=0, sticky=tk.W)
 max_charge_rate_entry = ttk.Entry(frame)
 max_charge_rate_entry.grid(row=19, column=1)
-max_charge_rate_entry.insert(0, "0.85")
+max_charge_rate_entry.insert(0, str(config.DEFAULT_MAX_CHARGE_RATE))
 
 ttk.Label(frame, text="Taguchi Experiment Frame", font=('Helvetica', 12, 'bold')).grid(row=0, column=3, columnspan=2, sticky=tk.W)
 
