@@ -9,6 +9,7 @@ import pickle
 from RL.problems.vrp.state_cvrp import StateCVRP
 from RL.problems.vrp.state_sdvrp import StateSDVRP
 from RL.utils.beam_search import beam_search
+import config
 
 class VRPDatasetNew(Dataset):
 
@@ -44,7 +45,7 @@ class VRPDatasetNew(Dataset):
         return self.data[idx]
 
 if __name__ == "__main__":
-    model, _ = load_model('RL/pretrained/cvrp_20/')
+    model, _ = load_model(config.DEFAULT_RL_MODEL_PATH)
     torch.manual_seed(1234)
     # dataset = CVRP.make_dataset(size=100, num_samples=1)
     # dataloader = DataLoader(dataset, batch_size=100)
